@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Product, OrderItem } from '../types';
 import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle } from 'lucide-react';
 
 
-const ErrorDisplay: React.FC<{ message: string }> = ({ message }) => {
+const ErrorDisplay: React.FC<{ message: string }> = memo(({ message }) => {
     const navigate = useNavigate();
     return (
         <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
@@ -22,16 +22,16 @@ const ErrorDisplay: React.FC<{ message: string }> = ({ message }) => {
             </div>
         </div>
     );
-};
+});
 
-const LoadingDisplay: React.FC<{ message: string }> = ({ message }) => {
+const LoadingDisplay: React.FC<{ message: string }> = memo(({ message }) => {
     return (
          <div className="flex flex-col items-center justify-center min-h-screen">
             <Loader2 className="animate-spin text-amber-300" size={48} />
             <p className="mt-4" style={{color: 'var(--color-text-secondary)'}}>{message}</p>
         </div>
     );
-};
+});
 
 const CustomerMenuPage: React.FC = () => {
     const { cafeId, tableId } = useParams<{ cafeId: string, tableId: string }>();
@@ -49,6 +49,7 @@ const CustomerMenuPage: React.FC = () => {
     const [editingNote, setEditingNote] = useState<OrderItem | null>(null);
     const [orderState, setOrderState] = useState<'idle' | 'sending' | 'sent'>('idle');
     const [fullscreenState, setFullscreenState] = useState<'idle' | 'requested' | 'active' | 'failed'>('idle');
+    const [noteText, setNoteText] = useState('');
 
     const enterFullscreen = async () => {
         try {
@@ -73,6 +74,23 @@ const CustomerMenuPage: React.FC = () => {
             enterFullscreen();
         }
     }, [isKioskMode, fullscreenState]);
+
+    useEffect(() => {
+        if (isCartOpen || editingNote) {
+            document.body.classList.add('modal-open');
+        } else {
+            document.body.classList.remove('modal-open');
+        }
+        return () => {
+            document.body.classList.remove('modal-open');
+        }
+    }, [isCartOpen, editingNote]);
+    
+    useEffect(() => {
+        if(editingNote) {
+            setNoteText(editingNote.notes || '');
+        }
+    }, [editingNote]);
 
 
     useEffect(() => {
@@ -335,47 +353,53 @@ const CustomerMenuPage: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => removeFromCart(item.productId)} className="p-1.5 rounded-full secondary-button !rounded-full"><Minus size={16} /></button>
                                     <span className="w-6 text-center font-bold">{item.quantity}</span>
+{/* Fix: The file was incomplete. Completing the file with the rest of the cart item and modal logic. */}
                                     <button onClick={() => {
                                         const product = products.find(p => p.id === item.productId);
                                         if (product) addToCart(product);
                                     }} className="p-1.5 rounded-full secondary-button !rounded-full"><Plus size={16} /></button>
                                 </div>
                             </div>
-                             <button onClick={() => setEditingNote(item)} className="text-sm text-amber-300 flex items-center gap-1.5 self-start py-1 hover:underline">
-                                <MessageSquarePlus size={16} /> {item.notes ? 'Editar observação' : 'Adicionar observação'}
+                            <button onClick={() => setEditingNote(item)} className="text-xs text-amber-300 flex items-center gap-1.5 self-start py-1 hover:underline">
+                                <MessageSquarePlus size={14} /> {item.notes ? 'Editar observação' : 'Adicionar observação'}
                             </button>
-                            {item.notes && <p className="text-sm bg-amber-900/50 p-2 rounded-md text-amber-200 italic">Obs: {item.notes}</p>}
+                            {item.notes && <p className="text-xs bg-amber-900/50 p-2 rounded-md text-amber-200 italic">Obs: {item.notes}</p>}
                         </div>
                     ))}
                 </div>
-                <footer className="p-4 border-t bg-transparent" style={{borderColor: 'var(--color-glass-border)'}}>
+                <footer className="p-4 mt-auto border-t flex-shrink-0" style={{borderColor: 'var(--color-glass-border)'}}>
                     <div className="flex justify-between items-center text-xl font-bold mb-4">
                         <span>Total:</span>
                         <span>€{cartTotal.toFixed(2)}</span>
                     </div>
-                    <button onClick={handleSubmitOrder} disabled={cart.length === 0 || orderState === 'sending'} className="w-full premium-gradient-button font-bold py-4 rounded-lg flex items-center justify-center gap-2 text-lg">
-                        {orderState === 'sending' ? <Loader2 className="animate-spin" /> : <Send size={20}/>}
-                        {orderState === 'sending' ? 'A Enviar...' : 'Enviar Pedido para a Cozinha'}
+                    <button
+                        onClick={handleSubmitOrder}
+                        disabled={cart.length === 0 || orderState !== 'idle'}
+                        className="w-full premium-gradient-button py-4 text-lg flex items-center justify-center gap-2"
+                    >
+                        {orderState === 'sending' ? <Loader2 className="animate-spin" /> : <Send size={20} />}
+                        {orderState === 'sending' ? 'A Enviar...' : 'Enviar Pedido'}
                     </button>
                 </footer>
             </div>
 
-            {/* Note Modal */}
+            {/* Note editing modal */}
             {editingNote && (
-                 <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
                     <div className="glass-card w-full max-w-md p-6">
                         <h3 className="text-xl font-bold font-display mb-1">Observação para:</h3>
-                        <p style={{color: 'var(--color-text-secondary)'}} className="mb-4">{editingNote.productName}</p>
+                        <p className="mb-4" style={{color: 'var(--color-text-secondary)'}}>{editingNote.productName}</p>
                         <textarea
-                            defaultValue={editingNote.notes || ''}
-                            onBlur={(e) => handleSaveNote(e.target.value)}
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value)}
                             className="w-full glass-input"
                             rows={4}
                             autoFocus
-                            placeholder="Ex: sem gelo, bem passado..."
+                            placeholder="Ex: sem cebola, ponto da carne..."
                         />
-                        <div className="mt-6 flex justify-end">
-                            <button onClick={() => setEditingNote(null)} className="premium-gradient-button font-bold py-2 px-6 rounded-lg">Fechar</button>
+                         <div className="mt-6 flex justify-end gap-3">
+                            <button type="button" onClick={() => setEditingNote(null)} className="secondary-button font-bold py-2 px-4">Cancelar</button>
+                            <button type="button" onClick={() => handleSaveNote(noteText)} className="premium-gradient-button py-2 px-4">Guardar</button>
                         </div>
                     </div>
                 </div>

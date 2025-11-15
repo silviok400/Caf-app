@@ -70,7 +70,6 @@ export interface Coffee {
 
 export interface ThemeSettings {
   logoUrl?: string;
-  publicUrl?: string;
   backgroundImageUrl?: string;
   backgroundOverlayOpacity: number;
   colors: {

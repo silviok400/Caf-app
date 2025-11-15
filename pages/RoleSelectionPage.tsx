@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Coffee, User, Shield, ArrowLeft, QrCode, X, AlertTriangle } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
@@ -8,20 +8,25 @@ import QRCode from 'qrcode';
 const QRCodeModal: React.FC<{
   cafe: Cafe;
   onClose: () => void;
-  publicUrl: string;
-}> = ({ cafe, onClose, publicUrl }) => {
+}> = memo(({ cafe, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  const baseUrl = publicUrl.trim().replace(/\/$/, '');
-  const url = baseUrl ? `${baseUrl}/#/join/${cafe.id}` : '';
 
   useEffect(() => {
-    if (canvasRef.current && url) {
+    document.body.classList.add('modal-open');
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, []);
+
+  const url = `https://cafe-control-app.vercel.app/#/join/${cafe.id}`;
+
+  useEffect(() => {
+    if (canvasRef.current) {
       QRCode.toCanvas(canvasRef.current, url, { width: 256, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#4f3b2a', light: '#FFFFFF' } }, (error) => {
         if (error) console.error("Falha ao gerar QR Code:", error);
       });
     }
-  }, [url]);
+  }, [url, cafe.id]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -33,20 +38,12 @@ const QRCodeModal: React.FC<{
         <h3 className="text-3xl font-bold font-display mb-2">Partilhar Acesso</h3>
         <p style={{color: 'var(--color-text-secondary)'}} className="mb-6">Outros podem entrar em <strong>{cafe.name}</strong> lendo este QR Code.</p>
         <div className="qr-container-glow">
-            {url ? (
-               <canvas ref={canvasRef} />
-            ) : (
-                <div className="w-[256px] h-[256px] flex flex-col items-center justify-center text-center p-4">
-                    <AlertTriangle size={32} className="text-amber-500" />
-                    <p className="mt-2 font-semibold text-stone-700">URL Público em falta</p>
-                    <p className="mt-1 text-xs text-stone-500">Configure o URL nas Definições de Admin para ativar este QR Code.</p>
-                </div>
-           )}
+          <canvas ref={canvasRef} />
         </div>
       </div>
     </div>
   );
-};
+});
 
 
 const RoleSelectionPage: React.FC = () => {
@@ -136,7 +133,7 @@ const RoleSelectionPage: React.FC = () => {
       </div>
 
       {isQrModalOpen && currentCafe && (
-        <QRCodeModal cafe={currentCafe} onClose={() => setIsQrModalOpen(false)} publicUrl={theme.publicUrl || ''} />
+        <QRCodeModal cafe={currentCafe} onClose={() => setIsQrModalOpen(false)} />
       )}
     </div>
   );

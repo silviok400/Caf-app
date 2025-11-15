@@ -9,6 +9,13 @@ const QRScannerModal: React.FC<{
     const [error, setLocalError] = useState('');
 
     useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
+
+    useEffect(() => {
         let animationFrameId: number;
 
         const startCamera = async () => {

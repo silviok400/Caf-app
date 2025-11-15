@@ -12,11 +12,17 @@ const TableQRCodeModal: React.FC<{
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [kioskEnabled, setKioskEnabled] = useState(false);
   
-  const baseUrl = theme.publicUrl?.trim().replace(/\/$/, ''); // Trim and remove trailing slash
-  const url = baseUrl ? `${baseUrl}/#/menu/${cafe.id}/${table.id}${kioskEnabled ? '?kiosk=true' : ''}` : '';
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => {
+        document.body.classList.remove('modal-open');
+    };
+  }, []);
+
+  const url = `https://cafe-control-app.vercel.app/#/menu/${cafe.id}/${table.id}${kioskEnabled ? '?kiosk=true' : ''}`;
 
   useEffect(() => {
-    if (canvasRef.current && url) {
+    if (canvasRef.current) {
       QRCode.toCanvas(canvasRef.current, url, { width: 256, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#4f3b2a', light: '#FFFFFF' } }, (error) => {
         if (error) console.error("Falha ao gerar QR Code:", error);
       });
@@ -140,13 +146,6 @@ const TableQRCodeModal: React.FC<{
         <p style={{color: 'var(--color-text-secondary)'}} className="mb-6">Aponte a câmara para este código para ver o menu e fazer pedidos.</p>
         <div className="qr-container-glow relative">
            <canvas ref={canvasRef} />
-           {!url && (
-                <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 rounded-xl">
-                    <AlertTriangle size={32} className="text-amber-500" />
-                    <p className="mt-2 font-semibold text-stone-700">URL Público em falta</p>
-                    <p className="mt-1 text-xs text-stone-500">Vá a Admin > Definições para configurar o URL da aplicação e ativar o QR Code.</p>
-                </div>
-            )}
         </div>
         
         <div className="mt-6">
@@ -170,7 +169,6 @@ const TableQRCodeModal: React.FC<{
         <div className="mt-6">
             <button 
                 onClick={handlePrint}
-                disabled={!url}
                 className="w-full premium-gradient-button py-3 text-lg flex items-center justify-center gap-3"
             >
                 <Printer size={22}/>

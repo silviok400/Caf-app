@@ -38,7 +38,6 @@ const initialProducts: Omit<Product, 'id'|'cafe_id'>[] = [];
 const initialCategories = [...new Set(initialProducts.map(p => p.category))].sort();
 export const defaultTheme: ThemeSettings = {
     logoUrl: '',
-    publicUrl: '',
     backgroundImageUrl: '',
     backgroundOverlayOpacity: 0.45,
     colors: {
@@ -114,11 +113,10 @@ const mergeDbThemeIntoSettings = (dbTheme: any): ThemeSettings => {
         }
     }
     if (dbTheme.fonts) {
-        const { _logoUrl, _hideManagerLogin, _publicUrl, _backgroundImageUrl, _backgroundOverlayOpacity, _layout, ...fontSettings } = dbTheme.fonts;
+        const { _logoUrl, _hideManagerLogin, _backgroundImageUrl, _backgroundOverlayOpacity, _layout, ...fontSettings } = dbTheme.fonts;
         baseTheme.fonts = { ...baseTheme.fonts, ...fontSettings };
         if (typeof _logoUrl !== 'undefined') baseTheme.logoUrl = _logoUrl;
         if (typeof _hideManagerLogin !== 'undefined') baseTheme.hideManagerLogin = _hideManagerLogin;
-        if (typeof _publicUrl !== 'undefined') baseTheme.publicUrl = _publicUrl;
         if (typeof _backgroundImageUrl !== 'undefined') baseTheme.backgroundImageUrl = _backgroundImageUrl;
         if (typeof _backgroundOverlayOpacity !== 'undefined') baseTheme.backgroundOverlayOpacity = _backgroundOverlayOpacity;
         if (typeof _layout !== 'undefined') baseTheme.layout = { ...baseTheme.layout, ..._layout };
@@ -416,14 +414,14 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEYS.USER, JSON.stringify(user)); }, [user]);
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_CAFE_ID, JSON.stringify(currentCafeId)); }, [currentCafeId]);
 
-  const selectCafe = (cafeId: string) => {
+  const selectCafe = useCallback((cafeId: string) => {
     if (cafeId !== currentCafeId) {
         setUser(null);
         setCurrentCafeId(cafeId);
     }
-  };
+  }, [currentCafeId]);
 
-  const createCafe = async (name: string, adminPin: string, managerName: string): Promise<boolean> => {
+  const createCafe = useCallback(async (name: string, adminPin: string, managerName: string): Promise<boolean> => {
     let cafeData: Cafe | null = null;
     try {
         // 1. Create Cafe
@@ -453,7 +451,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             ...fonts,
             _logoUrl: restOfTheme.logoUrl,
             _hideManagerLogin: restOfTheme.hideManagerLogin,
-            _publicUrl: restOfTheme.publicUrl,
             _backgroundImageUrl: restOfTheme.backgroundImageUrl,
             _backgroundOverlayOpacity: restOfTheme.backgroundOverlayOpacity,
             _layout: restOfTheme.layout,
@@ -489,9 +486,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
         return false;
     }
-  };
+  }, [selectCafe]);
   
-  const deleteCafe = async (cafeId: string, adminPin: string): Promise<boolean> => {
+  const deleteCafe = useCallback(async (cafeId: string, adminPin: string): Promise<boolean> => {
       const admin = staff.find(s => s.role === 'admin');
       if (!admin || admin.pin !== adminPin) {
         console.error("Admin PIN validation failed for cafe deletion.");
@@ -512,30 +509,30 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         console.error("Error during cafe deletion process:", error);
         return false;
       }
-  };
+  }, [staff, currentCafeId]);
 
-  const findUserByPin = (pin: string): Staff | null => staff.find(s => s.pin === pin) || null;
+  const findUserByPin = useCallback((pin: string): Staff | null => staff.find(s => s.pin === pin) || null, [staff]);
   
-  const setCurrentUser = (userToSet: Staff, cafeIdForFlag?: string) => {
+  const setCurrentUser = useCallback((userToSet: Staff, cafeIdForFlag?: string) => {
     const cafeId = cafeIdForFlag || currentCafeId;
     if (userToSet.role === 'admin' && cafeId) {
         localStorage.setItem(`${LOCAL_STORAGE_KEYS.IS_ADMIN_DEVICE_PREFIX}${cafeId}`, 'true');
     }
     setUser(userToSet);
-  };
+  }, [currentCafeId]);
 
-  const logout = () => setUser(null);
+  const logout = useCallback(() => setUser(null), []);
   
-  const fullLogout = () => {
+  const fullLogout = useCallback(() => {
     setUser(null);
     setCurrentCafeId(null);
     
     // Remove only session-specific data, preserving manager device flags.
     localStorage.removeItem(LOCAL_STORAGE_KEYS.USER);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_CAFE_ID);
-  };
+  }, []);
 
-  const addOrder = async (tableId: string, items: OrderItem[], isCustomer: boolean = false) => {
+  const addOrder = useCallback(async (tableId: string, items: OrderItem[], isCustomer: boolean = false) => {
     if ((!user && !isCustomer) || !currentCafeId) return;
 
     const staffId = user ? user.id : 'customer-order';
@@ -551,14 +548,14 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     if (error) console.error("Error adding order:", error.message);
     
     if (!isCustomer) new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(e => console.error("Error playing audio:", e));
-  };
+  }, [user, currentCafeId]);
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     const { error } = await supabase.from('orders')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', orderId);
     if (error) console.error("Error updating order status:", error.message);
-  };
+  }, []);
 
   const getProductById = useCallback((id: string) => products.find(p => p.id === id), [products]);
   const getOrdersForTable = useCallback((tableId: string) => orders.filter(o => o.table_id === tableId), [orders]);
@@ -568,7 +565,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       .reduce((total, order) => total + order.items.reduce((orderTotal, item) => orderTotal + (item.productPrice * item.quantity), 0), 0);
   }, [orders]);
 
-  const closeTableBill = async (tableId: string) => {
+  const closeTableBill = useCallback(async (tableId: string) => {
     if (!currentCafeId) return;
     const ordersToUpdate = orders
         .filter(order => order.table_id === tableId && order.status !== OrderStatus.PAID && order.status !== OrderStatus.CANCELLED)
@@ -580,9 +577,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             .in('id', ordersToUpdate);
         if (error) console.error("Error closing table bill:", error.message);
     }
-  };
+  }, [currentCafeId, orders]);
 
-  const removeItemFromOrder = async (orderId: string, itemIndex: number) => {
+  const removeItemFromOrder = useCallback(async (orderId: string, itemIndex: number) => {
     if (!currentCafeId) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
@@ -596,17 +593,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         .update({ items: updatedItems, status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', orderId);
     if (error) console.error("Error removing item from order:", error.message);
-  };
+  }, [currentCafeId, orders]);
 
-  const updateProduct = async (product: Product) => {
+  const updateProduct = useCallback(async (product: Product) => {
     const { error } = await supabase.from('products').update(product).eq('id', product.id);
     if (error) {
       console.error("Error updating product:", error.message);
       throw new Error(error.message);
     }
-  };
+  }, []);
 
-  const addProduct = async (product: Omit<Product, 'id'|'cafe_id'>) => {
+  const addProduct = useCallback(async (product: Omit<Product, 'id'|'cafe_id'>) => {
     if (!currentCafeId) throw new Error("Nenhum café selecionado.");
     const newProduct = { ...product, id: uuidv4(), cafe_id: currentCafeId };
     const { error } = await supabase.from('products').insert(newProduct);
@@ -614,9 +611,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         console.error("Error adding product:", error.message);
         throw new Error(error.message);
     }
-  };
+  }, [currentCafeId]);
 
-  const deleteProduct = async (productId: string) => {
+  const deleteProduct = useCallback(async (productId: string) => {
     if (!currentCafeId) throw new Error("Nenhum café selecionado.");
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (error) {
@@ -631,9 +628,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         event: 'product-deleted',
         payload: { id: productId },
     });
-  };
+  }, [currentCafeId]);
   
-  const addStaff = async (staffMember: Omit<Staff, 'id'|'cafe_id'>) => {
+  const addStaff = useCallback(async (staffMember: Omit<Staff, 'id'|'cafe_id'>) => {
     if (!currentCafeId) throw new Error("Nenhum café selecionado.");
     const newStaff = { ...staffMember, id: uuidv4(), cafe_id: currentCafeId };
     const { error } = await supabase.from('staff').insert(newStaff);
@@ -641,17 +638,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         console.error("Error adding staff:", error.message);
         throw new Error(error.message);
     }
-  };
+  }, [currentCafeId]);
 
-  const updateStaff = async (staffMember: Staff) => {
+  const updateStaff = useCallback(async (staffMember: Staff) => {
     const { error } = await supabase.from('staff').update(staffMember).eq('id', staffMember.id);
     if (error) {
         console.error("Error updating staff:", error.message);
         throw new Error(error.message);
     }
-  };
+  }, []);
   
-  const deleteStaff = async (staffId: string) => {
+  const deleteStaff = useCallback(async (staffId: string) => {
     if (!currentCafeId) throw new Error("Nenhum café selecionado.");
     const { error } = await supabase.from('staff').delete().eq('id', staffId);
     if (error) {
@@ -665,9 +662,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         event: 'staff-deleted',
         payload: { id: staffId },
     });
-  };
+  }, [currentCafeId]);
 
-  const addTable = async () => {
+  const addTable = useCallback(async () => {
     if (!currentCafeId) return;
     const lastTableNumber = tables.reduce((max, table) => Math.max(max, parseInt(table.name.replace('Mesa ', '')) || 0), 0);
     // Rely on DB default for is_hidden to avoid schema cache issues.
@@ -678,9 +675,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     if (error) {
       console.error("Error adding table:", error.message);
     }
-  };
+  }, [currentCafeId, tables]);
 
-  const updateTable = async (tableUpdate: { id: string, is_hidden: boolean }) => {
+  const updateTable = useCallback(async (tableUpdate: { id: string, is_hidden: boolean }) => {
     if (!currentCafeId) return;
     // Call the RPC function to bypass schema cache issues.
     const { error } = await supabase.rpc('update_table_visibility', {
@@ -699,9 +696,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         payload: { tableUpdate },
       });
     }
-  };
+  }, [currentCafeId]);
 
-  const deleteTable = async (tableId: string) => {
+  const deleteTable = useCallback(async (tableId: string) => {
     if (!currentCafeId) return;
     // This function now HIDES the table by setting is_hidden to true.
     const tableUpdate = { id: tableId, is_hidden: true };
@@ -720,17 +717,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         payload: { tableUpdate },
       });
     }
-  };
+  }, [currentCafeId]);
   
-  const deleteLastTable = async () => {
+  const deleteLastTable = useCallback(async () => {
     const visibleTables = tables.filter(t => !t.is_hidden);
     if (visibleTables.length === 0) return;
     // Assumes tables are sorted by name number
     const lastTable = visibleTables[visibleTables.length - 1];
     await updateTable({ id: lastTable.id, is_hidden: true });
-  };
+  }, [tables, updateTable]);
   
-  const updateCategory = async (oldName: string, newName: string) => {
+  const updateCategory = useCallback(async (oldName: string, newName: string) => {
     if (!currentCafeId) return;
     const productsToUpdate = products.filter(p => p.category === oldName).map(p => p.id);
     if (productsToUpdate.length > 0) {
@@ -742,9 +739,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             throw new Error(error.message);
         }
     }
-  };
+  }, [currentCafeId, products]);
 
-  const updateTheme = async (themeUpdate: Partial<ThemeSettings>) => {
+  const updateTheme = useCallback(async (themeUpdate: Partial<ThemeSettings>) => {
       if (!currentCafeId) return;
       
       const newThemeData = { ...theme, ...themeUpdate };
@@ -761,7 +758,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             ...newThemeData.fonts,
             _logoUrl: newThemeData.logoUrl,
             _hideManagerLogin: newThemeData.hideManagerLogin,
-            _publicUrl: newThemeData.publicUrl,
             _backgroundImageUrl: newThemeData.backgroundImageUrl,
             _backgroundOverlayOpacity: newThemeData.backgroundOverlayOpacity,
             _layout: newThemeData.layout,
@@ -774,17 +770,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (error) {
           console.error("Error updating theme:", error.message);
       }
-  };
+  }, [currentCafeId, theme]);
 
-  const updateCafe = async (cafeUpdate: Partial<Omit<Cafe, 'id'>>) => {
+  const updateCafe = useCallback(async (cafeUpdate: Partial<Omit<Cafe, 'id'>>) => {
       if (!currentCafeId) return;
       const { error } = await supabase.from('cafes')
         .update(cafeUpdate)
         .eq('id', currentCafeId);
       if (error) console.error("Error updating cafe details:", error.message);
-  };
+  }, [currentCafeId]);
   
-  const updateCurrentUserPin = async (currentPin: string, newPin: string): Promise<{ success: boolean; message: string }> => {
+  const updateCurrentUserPin = useCallback(async (currentPin: string, newPin: string): Promise<{ success: boolean; message: string }> => {
       if (!user || user.pin !== currentPin) {
         return { success: false, message: 'O PIN atual está incorreto.' };
       }
@@ -794,9 +790,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
       setUser({ ...user, pin: newPin });
       return { success: true, message: 'PIN atualizado com sucesso!' };
-  };
+  }, [user]);
 
-  const updateCurrentUserPhone = async (phoneNumber: string): Promise<{ success: boolean; message: string }> => {
+  const updateCurrentUserPhone = useCallback(async (phoneNumber: string): Promise<{ success: boolean; message: string }> => {
       if (!user) return { success: false, message: 'Utilizador não encontrado.' };
       const { error } = await supabase.from('staff').update({ phone: phoneNumber }).eq('id', user.id);
       if (error) {
@@ -804,21 +800,21 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
       setUser({ ...user, phone: phoneNumber });
       return { success: true, message: 'Número de telemóvel atualizado!' };
-  };
+  }, [user]);
 
-  const findAdminByPhone = (phoneNumber: string): Staff | null => {
+  const findAdminByPhone = useCallback((phoneNumber: string): Staff | null => {
       return staff.find(s => s.role === 'admin' && s.phone === phoneNumber) || null;
-  };
+  }, [staff]);
   
-  const resetPinForUser = async (userId: string, newPin: string): Promise<{ success: boolean; message: string }> => {
+  const resetPinForUser = useCallback(async (userId: string, newPin: string): Promise<{ success: boolean; message: string }> => {
       const { error } = await supabase.from('staff').update({ pin: newPin }).eq('id', userId);
       if (error) {
         return { success: false, message: `Falha ao redefinir o PIN: ${error.message}` };
       }
       return { success: true, message: 'PIN redefinido com sucesso.' };
-  };
+  }, []);
   
-  const loginAdminByNamePinAndCafe = async (cafeName: string, managerName: string, pin: string): Promise<{ success: boolean; message: string; }> => {
+  const loginAdminByNamePinAndCafe = useCallback(async (cafeName: string, managerName: string, pin: string): Promise<{ success: boolean; message: string; }> => {
       const cafe = availableCafes.find(c => c.name.toLowerCase() === cafeName.trim().toLowerCase());
       if (!cafe) return { success: false, message: 'Café não encontrado.' };
       
@@ -834,10 +830,10 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       } else {
         return { success: false, message: 'Nome do gerente ou PIN incorretos.' };
       }
-  };
+  }, [availableCafes, selectCafe, setCurrentUser]);
 
 
-  const value: DataContextType = {
+  const value: DataContextType = useMemo(() => ({
     user,
     staff,
     products,
@@ -882,7 +878,16 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     findAdminByPhone,
     resetPinForUser,
     loginAdminByNamePinAndCafe,
-  };
+  }), [
+    user, staff, products, coffees, tables, orders, categories, currentCafe,
+    availableCafes, theme, isAppLoading, findUserByPin, setCurrentUser, logout,
+    fullLogout, addOrder, updateOrderStatus, getProductById, getOrdersForTable,
+    getTotalForTable, closeTableBill, removeItemFromOrder, updateProduct, addProduct,
+    deleteProduct, addStaff, updateStaff, deleteStaff, addTable, deleteTable,
+    updateTable, deleteLastTable, updateCategory, selectCafe, createCafe, deleteCafe,
+    updateTheme, updateCafe, updateCurrentUserPin, updateCurrentUserPhone,
+    findAdminByPhone, resetPinForUser, loginAdminByNamePinAndCafe
+  ]);
 
   return (
     <DataContext.Provider value={value}>

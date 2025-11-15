@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Coffee, XCircle, ArrowLeft, KeyRound, Phone, MessageSquare, ShieldCheck, CheckCircle, Fingerprint, Loader2, Copy, Check } from 'lucide-react';
@@ -7,7 +7,7 @@ import { supabase } from '../supabaseClient';
 
 const PinRecoveryModal: React.FC<{
   onClose: () => void;
-}> = ({ onClose }) => {
+}> = memo(({ onClose }) => {
   const { findAdminByPhone, resetPinForUser } = useData();
   const [step, setStep] = useState<'phone' | 'code' | 'reset' | 'success'>('phone');
   const [phone, setPhone] = useState('');
@@ -20,6 +20,14 @@ const PinRecoveryModal: React.FC<{
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState('');
+
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, []);
+
 
   const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,7 +191,7 @@ const PinRecoveryModal: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 
 const LoginPage: React.FC = () => {

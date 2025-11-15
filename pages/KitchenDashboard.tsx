@@ -1,9 +1,17 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { useData } from '../contexts/DataContext';
 import { Order, OrderStatus, Staff, Table } from '../types';
 import { Clock, Check, UtensilsCrossed, Ban, ThumbsUp, History, X } from 'lucide-react';
 
-const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
+const timeSince = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const interval = seconds / 60;
+    if (interval > 60) return `${Math.floor(interval / 60)}h ${Math.round(interval % 60)}m`;
+    if (interval > 1) return `${Math.floor(interval)} min`;
+    return `${Math.floor(seconds)} seg`;
+};
+
+const OrderCard: React.FC<{ order: Order }> = memo(({ order }) => {
   const { updateOrderStatus, staff, user, tables, theme } = useData();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const waiter = staff.find(s => s.id === order.staff_id);
@@ -13,14 +21,6 @@ const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
     return order.items.reduce((total, item) => total + (item.productPrice * item.quantity), 0);
   }, [order.items]);
 
-  const timeSince = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    const interval = seconds / 60;
-    if (interval > 60) return `${Math.floor(interval / 60)}h ${Math.round(interval % 60)}m`;
-    if (interval > 1) return `${Math.floor(interval)} min`;
-    return `${Math.floor(seconds)} seg`;
-  };
-  
   const statusKey = (Object.keys(OrderStatus) as Array<keyof typeof OrderStatus>).find(key => OrderStatus[key] === order.status)?.toLowerCase() || 'cancelled';
   const statusColor = theme.statusColors[statusKey as keyof typeof theme.statusColors] || theme.statusColors.cancelled;
 
@@ -89,14 +89,21 @@ const OrderCard: React.FC<{ order: Order }> = ({ order }) => {
       </div>
     </div>
   );
-};
+});
 
 const HistoryModal: React.FC<{
   orders: Order[];
   onClose: () => void;
   staff: Staff[];
   tables: Table[];
-}> = ({ orders, onClose, staff, tables }) => {
+}> = memo(({ orders, onClose, staff, tables }) => {
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="glass-card w-full max-w-2xl h-[90vh] flex flex-col">
@@ -143,7 +150,7 @@ const HistoryModal: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 
 const KitchenDashboard: React.FC = () => {

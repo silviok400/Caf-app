@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Coffee, ChefHat, Shield, LogOut } from 'lucide-react';
@@ -7,6 +7,17 @@ const Header: React.FC = () => {
   const { user, fullLogout, currentCafe, theme } = useData();
   const navigate = useNavigate();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isLogoutModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isLogoutModalOpen]);
 
   const handleLogout = () => {
     fullLogout();

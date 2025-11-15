@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { useData, defaultTheme } from '../contexts/DataContext';
 import { Product, Order, OrderStatus, Staff, UserRole, Cafe, ThemeSettings, Table } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +11,18 @@ const ConfirmationModal: React.FC<{
   onConfirm: () => void;
   title: string;
   message: string;
-}> = ({ isOpen, onClose, onConfirm, title, message }) => {
+}> = memo(({ isOpen, onClose, onConfirm, title, message }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -43,17 +54,24 @@ const ConfirmationModal: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 const CategoryModal: React.FC<{
   categoryName: string | null;
   onSave: (name: string, oldName?: string) => Promise<void>;
   onClose: () => void;
-}> = ({ categoryName, onSave, onClose }) => {
+}> = memo(({ categoryName, onSave, onClose }) => {
     const [name, setName] = useState(categoryName || '');
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const { categories } = useData();
+
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,16 +119,27 @@ const CategoryModal: React.FC<{
             </div>
         </div>
     );
-};
+});
 
 const DeleteServerConfirmationModal: React.FC<{
   isOpen: boolean;
   cafe: Cafe;
   onConfirm: (pin: string) => Promise<boolean>;
   onClose: () => void;
-}> = ({ isOpen, cafe, onConfirm, onClose }) => {
+}> = memo(({ isOpen, cafe, onConfirm, onClose }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -166,7 +195,7 @@ const DeleteServerConfirmationModal: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 const FONT_OPTIONS = {
     display: [
@@ -185,7 +214,7 @@ const FONT_OPTIONS = {
     ]
 };
 
-const AccountSecurity = () => {
+const AccountSecurity = memo(() => {
     const { user, updateCurrentUserPin, updateCurrentUserPhone, theme, updateTheme } = useData();
     const [currentPin, setCurrentPin] = useState('');
     const [newPin, setNewPin] = useState('');
@@ -371,9 +400,9 @@ const AccountSecurity = () => {
             </div>
         </div>
     );
-};
+});
 
-const AppearanceCustomization = () => {
+const AppearanceCustomization = memo(() => {
     const { theme, updateTheme, currentCafe, updateCafe } = useData();
     const [localTheme, setLocalTheme] = useState<ThemeSettings>(theme);
     const [appName, setAppName] = useState(currentCafe?.name || '');
@@ -458,11 +487,6 @@ const AppearanceCustomization = () => {
                         <div>
                             <label htmlFor="app-name" className="block text-sm font-bold mb-1" style={{color: 'var(--color-text-secondary)'}}>Nome da Aplicação</label>
                             <input type="text" id="app-name" value={appName} onChange={(e) => setAppName(e.target.value)} className="w-full max-w-md glass-input" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold mb-1 flex items-center gap-2" style={{color: 'var(--color-text-secondary)'}}><LinkIcon size={16}/>URL Público da Aplicação</label>
-                            <input type="url" value={localTheme.publicUrl || ''} onChange={e => handleValueChange('publicUrl', e.target.value)} placeholder="https://exemplo.com/cafe-app" className="w-full max-w-lg glass-input" />
-                            <p className="text-xs mt-2" style={{color: 'var(--color-text-secondary)'}}>Essencial para que os QR Codes funcionem corretamente.</p>
                         </div>
                         <div>
                             <label className="block text-sm font-bold mb-3 flex items-center gap-2" style={{color: 'var(--color-text-secondary)'}}><ImageIcon size={16}/>Logótipo</label>
@@ -580,10 +604,10 @@ const AppearanceCustomization = () => {
              </div>
         </div>
     );
-};
+});
 
 
-const SettingsManagement = () => {
+const SettingsManagement = memo(() => {
     const { tables, categories, addTable, deleteLastTable, updateCategory, currentCafe, deleteCafe, theme, updateCafe, updateTable } = useData();
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -761,9 +785,9 @@ const SettingsManagement = () => {
             />
         </div>
     );
-};
+});
 
-const AnalyticsDashboard = () => {
+const AnalyticsDashboard = memo(() => {
     const { orders, staff, theme } = useData();
     const [dateRange, setDateRange] = useState<'today' | 'thisWeek' | 'thisMonth' | 'allTime'>('thisWeek');
   
@@ -996,9 +1020,9 @@ const AnalyticsDashboard = () => {
             )}
         </div>
     );
-};
+});
 
-const ProductManagement = () => {
+const ProductManagement = memo(() => {
     const { products, addProduct, updateProduct, deleteProduct } = useData();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -1113,15 +1137,22 @@ const ProductManagement = () => {
             />
         </div>
     );
-};
+});
 
-const ProductModal: React.FC<{product: Product | null, onSave: (data: any) => Promise<void>, onClose: () => void}> = ({product, onSave, onClose}) => {
+const ProductModal: React.FC<{product: Product | null, onSave: (data: any) => Promise<void>, onClose: () => void}> = memo(({product, onSave, onClose}) => {
     const { categories } = useData();
     const [name, setName] = useState(product?.name || '');
     const [category, setCategory] = useState(product?.category || '');
     const [price, setPrice] = useState(product?.price || 0);
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1181,14 +1212,21 @@ const ProductModal: React.FC<{product: Product | null, onSave: (data: any) => Pr
             </div>
         </div>
     );
-};
+});
 
-const StaffModal: React.FC<{staffMember: Staff | null, onSave: (data: any) => Promise<void>, onClose: () => void}> = ({staffMember, onSave, onClose}) => {
+const StaffModal: React.FC<{staffMember: Staff | null, onSave: (data: any) => Promise<void>, onClose: () => void}> = memo(({staffMember, onSave, onClose}) => {
     const [name, setName] = useState(staffMember?.name || '');
     const [pin, setPin] = useState(staffMember?.pin || '');
     const [role, setRole] = useState<UserRole>(staffMember?.role || 'waiter');
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+     useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1240,9 +1278,9 @@ const StaffModal: React.FC<{staffMember: Staff | null, onSave: (data: any) => Pr
             </div>
         </div>
     );
-}
+});
 
-const StaffManagement = () => {
+const StaffManagement = memo(() => {
     const { staff, addStaff, updateStaff, deleteStaff } = useData();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
@@ -1342,9 +1380,9 @@ const StaffManagement = () => {
             />
         </div>
     );
-};
+});
 
-const Reports = () => {
+const Reports = memo(() => {
     const { orders, staff, updateOrderStatus, theme, tables } = useData();
     const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
     const [staffSearch, setStaffSearch] = useState('');
@@ -1468,7 +1506,7 @@ const Reports = () => {
                         </thead>
                         <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
                             {todaysOrders.map(order => {
-                                const orderTotal = order.items.reduce((total, item) => total + (item.productPrice * item.quantity), 0);
+                                const orderTotal = order.items.reduce((total, item) => total + item.productPrice * item.quantity, 0);
                                 const tableName = tables.find(t => t.id === order.table_id)?.name || 'Desconhecida';
                                 const statusInfo = getStatusInfo(order.status);
                                 return (
@@ -1507,7 +1545,7 @@ const Reports = () => {
             />
         </div>
     );
-};
+});
 
 const AdminDashboard: React.FC = () => {
     const { theme } = useData();

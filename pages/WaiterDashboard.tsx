@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { useData } from '../contexts/DataContext';
 import { Table, Product, OrderItem, Order, OrderStatus } from '../types';
 import { Plus, Minus, X, Send, Receipt, Ban, Mic, Search, MessageSquarePlus, CheckCircle, Loader2 } from 'lucide-react';
@@ -6,7 +6,7 @@ import { Plus, Minus, X, Send, Receipt, Ban, Mic, Search, MessageSquarePlus, Che
 const OrderModal: React.FC<{
   table: Table;
   onClose: () => void;
-}> = ({ table, onClose }) => {
+}> = memo(({ table, onClose }) => {
   const { products, addOrder, getOrdersForTable, closeTableBill, removeItemFromOrder, user, theme } = useData();
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [view, setView] = useState<'order' | 'history'>('order');
@@ -19,6 +19,13 @@ const OrderModal: React.FC<{
   const [showAddedFeedback, setShowAddedFeedback] = useState<string | null>(null);
   const feedbackTimeoutRef = useRef<number | null>(null);
   const [submissionState, setSubmissionState] = useState<'idle' | 'submitting' | 'success'>('idle');
+
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, []);
 
   useEffect(() => {
     // Cleanup timeout on unmount
@@ -397,7 +404,7 @@ const OrderModal: React.FC<{
       )}
     </div>
   );
-};
+});
 
 const WaiterDashboard: React.FC = () => {
   const { tables, getOrdersForTable, getTotalForTable, theme } = useData();
