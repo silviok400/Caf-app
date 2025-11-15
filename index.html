@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Café Control</title>
     <base href="/">
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#44403c">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -230,5 +232,16 @@
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js').then(registration => {
+            console.log('Service Worker registered with scope:', registration.scope);
+          }).catch(registrationError => {
+            console.log('Service Worker registration failed:', registrationError);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

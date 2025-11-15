@@ -21,14 +21,17 @@ const assetsToCache = [
   'pages/ServerSelectionPage.tsx',
   'pages/WaiterDashboard.tsx',
   'pages/CustomerMenuPage.tsx',
+  'pages/CoffeeDetailsPage.tsx',
   'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap',
+  'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Plus+Jakarta+Sans:wght@400;500;700&family=Lora:wght@400;700&family=Montserrat:wght@400;700&family=Poppins:wght@400;700&family=Inter:wght@400;500;700&family=Lato:wght@400;700&family=Open+Sans:wght@400;700&family=Roboto:wght@400;500;700&display=swap',
   'https://aistudiocdn.com/react@^19.2.0',
   'https://aistudiocdn.com/react-router-dom@^7.9.5',
   'https://aistudiocdn.com/lucide-react@^0.553.0',
   'https://aistudiocdn.com/react-dom@^19.2.0/',
   'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm',
-  'https://upload.wikimedia.org/wikipedia/commons/c/c8/Blop.mp3'
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.4/+esm',
+  'https://upload.wikimedia.org/wikipedia/commons/c/c8/Blop.mp3',
+  'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg'
 ];
 
 // Install event: opens a cache and adds the app shell assets to it.
@@ -39,10 +42,8 @@ self.addEventListener('install', (event) => {
       .then((cache) => {
         console.log('Service Worker: Caching app shell');
         const cachePromises = assetsToCache.map(assetUrl => {
-          // Use a standard request for caching. `cache.add` handles this correctly.
-          // Using `mode: 'no-cors'` for cross-origin assets like fonts or audio
-          // results in an "opaque" response, which cannot be read by the app,
-          // causing playback/rendering failures. A standard CORS request is needed.
+          // A standard CORS request is needed for cross-origin assets.
+          // Opaque responses (from 'no-cors') can't be read by the app.
           return cache.add(assetUrl).catch(err => console.warn(`Could not cache ${assetUrl}: ${err}`));
         });
         return Promise.all(cachePromises);
