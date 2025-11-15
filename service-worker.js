@@ -72,34 +72,54 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Fetch event: serves assets from cache, falling back to network.
-// This strategy is "Cache first".
+// Fetch event: implements a robust cache-then-network strategy.
 self.addEventListener('fetch', (event) => {
-  // We only want to cache GET requests.
-  if (event.request.method !== 'GET') {
+  if (event.request.method !== 'GET' || event.request.url.includes('supabase.co')) {
+    // Do not cache anything other than GET requests or Supabase API calls.
+    // Let the browser handle these as it normally would.
+    return;
+  }
+  
+  // For HTML navigation requests, use a network-first strategy to ensure users get the latest version.
+  // Fall back to cache if the network is unavailable.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // If the network request is successful, cache it for offline use.
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+          return response;
+        })
+        .catch(() => {
+          // If the network request fails, serve the main page from the cache.
+          // For a SPA with HashRouter, '/' is the main entry point.
+          return caches.match('/');
+        })
+    );
     return;
   }
 
+  // For all other assets (CSS, JS, images, fonts), use a cache-first strategy.
   event.respondWith(
     caches.match(event.request)
-      .then((response) => {
-        // If the request is in the cache, return the cached response.
-        if (response) {
-          return response;
+      .then((cachedResponse) => {
+        // Return the cached response if it exists.
+        if (cachedResponse) {
+          return cachedResponse;
         }
 
-        // If the request is not in the cache, fetch it from the network.
-        return fetch(event.request)
-          .then((networkResponse) => {
-            // Optional: You could add non-critical assets to the cache here as they are requested.
-            return networkResponse;
+        // If not in cache, fetch from the network.
+        return fetch(event.request).then((networkResponse) => {
+          // Clone the response and cache it for future offline use.
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
           });
-      })
-      .catch((error) => {
-        console.error('Error in fetch handler:', error);
-        // Optional: you could return a custom offline page here.
-        // For now, we just let the browser handle the error.
-        throw error;
+          return networkResponse;
+        });
       })
   );
 });
