@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Café Control</title>
+    <base href="/">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Plus+Jakarta+Sans:wght@400;500;700&family=Lora:wght@400;700&family=Montserrat:wght@400;700&family=Poppins:wght@400;700&family=Inter:wght@400;500;700&family=Lato:wght@400;700&family=Open+Sans:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+      :root {
+        --color-background: #1a1411;
+        --color-text-primary: #f5eadd;
+        --color-text-secondary: #d1c2b4;
+        
+        --color-glass-bg: rgba(40, 32, 28, 0.4);
+        --color-glass-border: rgba(245, 234, 221, 0.15);
+        --color-glass-border-highlight: rgba(217, 183, 130, 0.4);
+
+        --color-primary: #4f3b2a;
+        --color-secondary: #d9b782;
+        
+        --color-table-free: #3a5c53;
+        --color-table-occupied: #b0693a;
+
+        --color-status-new: #b0693a;
+        --color-status-preparing: #d9b782;
+        --color-status-ready: #3a5c53;
+        --color-status-served: #5c8b9c;
+        --color-status-paid: #6c757d;
+        --color-status-cancelled: #495057;
+
+        --gradient-gold: linear-gradient(145deg, #f0d8a8, #c89c5c, #8a643c);
+        
+        --font-body: 'Plus Jakarta Sans', sans-serif;
+        --font-display: 'Playfair Display', serif;
+
+        --layout-card-border-radius: 28px;
+        
+        --shadow-light: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+        --shadow-inner: inset 0 1px 2px 0 rgba(255, 255, 255, 0.15);
+      }
+      
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: var(--font-body);
+        background-color: var(--color-background);
+        color: var(--color-text-primary);
+        /* Background image and overlay are now controlled by JS */
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      h1, h2, h3, .font-display {
+        font-family: var(--font-display);
+        letter-spacing: 0.03em;
+      }
+      
+      .glass-card {
+        background: var(--color-glass-bg);
+        -webkit-backdrop-filter: blur(22px);
+        backdrop-filter: blur(22px);
+        border-radius: var(--layout-card-border-radius);
+        border: 0.5px solid var(--color-glass-border);
+        box-shadow: var(--shadow-light), var(--shadow-inner);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .glass-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent 60%);
+        transform: translate(-50%, -50%) rotate(0deg);
+        transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+      
+      .glass-card:hover::before {
+        opacity: 1;
+        transform: translate(-10%, -10%) rotate(20deg);
+      }
+      
+      .glass-card-highlight:hover {
+        border-color: var(--color-glass-border-highlight);
+        transform: translateY(-6px) scale(1.02);
+      }
+
+      .premium-gradient-button {
+        background: var(--gradient-gold);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: calc(var(--layout-card-border-radius) - 6px);
+        color: #fff;
+        font-weight: 700;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        box-shadow: var(--shadow-light), var(--shadow-inner);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        -webkit-tap-highlight-color: transparent;
+      }
+      .premium-gradient-button:hover:not(:disabled) {
+        transform: scale(1.05);
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), var(--shadow-inner);
+      }
+      .premium-gradient-button:disabled {
+        background: #5a524c;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .premium-gradient-button:focus-visible {
+        outline: 2px solid var(--color-secondary);
+        outline-offset: 3px;
+      }
+      
+      .secondary-button {
+        background-color: rgba(0,0,0,0.2);
+        border: 0.5px solid var(--color-glass-border);
+        border-radius: calc(var(--layout-card-border-radius) - 6px);
+        color: var(--color-text-primary);
+        font-weight: 500;
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        -webkit-tap-highlight-color: transparent;
+      }
+       .secondary-button:hover:not(:disabled) {
+         background-color: rgba(0,0,0,0.35);
+         border-color: var(--color-glass-border-highlight);
+       }
+       .secondary-button:disabled {
+         opacity: 0.5;
+         cursor: not-allowed;
+       }
+       .secondary-button:focus-visible {
+        outline: 2px solid var(--color-secondary);
+        outline-offset: 3px;
+       }
+
+      .glass-input {
+        background: rgba(0,0,0,0.3);
+        border: 0.5px solid var(--color-glass-border);
+        border-radius: calc(var(--layout-card-border-radius) - 8px);
+        padding: 16px 20px;
+        color: var(--color-text-primary);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+      .glass-input::placeholder {
+        color: var(--color-text-secondary);
+        opacity: 0.7;
+      }
+      .glass-input:focus {
+        outline: none;
+        border-color: var(--color-glass-border-highlight);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-secondary) 25%, transparent);
+      }
+      
+      .icon-glow {
+        filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-secondary) 70%, transparent));
+      }
+
+      .qr-container-glow {
+        background: rgba(245, 234, 221, 0.95);
+        border-radius: var(--layout-card-border-radius);
+        padding: 16px;
+        display: inline-block;
+        box-shadow: 0 0 32px color-mix(in srgb, var(--color-secondary) 80%, transparent);
+        border: 1px solid var(--color-glass-border-highlight);
+        transition: all 0.3s ease;
+      }
+
+      ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.25);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: var(--color-secondary);
+        border-radius: 10px;
+        border: 3px solid transparent;
+        background-clip: content-box;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: color-mix(in srgb, var(--color-secondary) 85%, white);
+      }
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "qrcode": "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm",
+    "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.4/+esm"
+  }
+}
+</script>
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+  </body>
+</html>

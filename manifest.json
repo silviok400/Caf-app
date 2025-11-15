@@ -1,0 +1,21 @@
+{
+  "short_name": "Café Control",
+  "name": "Café Control",
+  "description": "Um sistema de ponto de venda (POS) e comandas para cafés, funcionando em rede local. Gerencia mesas, pedidos e produtos em tempo real entre tablets e um painel central.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiM0NDQwM2MiLz48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEwIDIwLjU1MWE4LjUwMiA4LjUwMiAwIDAgMS01LjY1LTIuMDE2Yy0uMzItLjI5My0uNzg3LS4yOTMtMS4xMDcgMC0uMzIuMjkzLS4zMi43NjggMCAxLjA2YTEwLjUgMTAuNSAwIDAgMCAxMy41MTIgMGMuMzItLjI5My4zMi0uNzY4IDAtMS4wNi0uMzItLjI5My0uNzg3LS4yOTMtMS4xMDcgMEE4LjUwMiA4LjUwMiAwIDAgMSAxMCAyMC41NTF6TTE5IDhoLTFWNmgxYTEgMSAwIDAgMCAwLTJoLTEuNTg2YTQgNCAwIDAgMC0zLjk1MS0zLjU4MkE0LjAxMiA0LjAxMiAwIDAgMCA5LjU4IDRIMmExIDEgMCAwIDAgMCAyaDF2MTBhMyAzIDAgMCAwIDMgM2g4YTQgMyAwIDAgMCAzLTNWOGgyYTEgMSAwIDEgMCAwLTJ6bS0zIDEwYTEgMSAwIDAgMS0xIDFİNkExIDEgMCAwIDEgNS0xVjZoMTB2MTJ6Ii8+PC9zdmc+",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiM0NDQwM2MiLz48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTEwIDIwLjU1MWE4LjUwMiA4LjUwMiAwIDAgMS01LjY1LTIuMDE2Yy0uMzItLjI5My0uNzg3LS4yOTMtMS4xMDcgMC0uMzIuMjkzLS4zMi43NjggMCAxLjA2YTEwLjUgMTAuNSAwIDAgMCAxMy41MTIgMGMuMzItLjI5My4zMi0uNzY4IDAtMS4wNi0uMzItLjI5My0uNzg3LS4yOTMtMS4xMDcgMEE4LjUwMiA4LjUwMiAwIDAgMSAxMCAyMC41NTF6TTE5IDhoLTFWNmgxYTEgMSAwIDAgMCAwLTJoLTEuNTg2YTQgNCAwIDAgMC0zLjk1MS0zLjU4MkE0LjAxMiA0LjAxMiAwIDAgMCA5LjU4IDRIMmExIDEgMCAwIDAgMCAyaDF2MTBhMyAzIDAgMCAwIDMgM2g4YTQgMyAwIDAgMCAzLTNWOGgyYTEgMSAwIDEgMCAwLTJ6bS0zIDEwYTEgMSAwIDAgMS0xIDFİNkExIDEgMCAwIDEgNS0xVjZoMTB2MTJ6Ii8+PC9zdmc+",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#44403c",
+  "background_color": "#f5f5f4"
+}

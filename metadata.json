@@ -1,0 +1,8 @@
+{
+  "name": "CAfe Config",
+  "description": "Um sistema de ponto de venda (POS) e comandas para cafés, funcionando em rede local. Gerencia mesas, pedidos e produtos em tempo real entre tablets e um painel central.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
