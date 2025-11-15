@@ -2,11 +2,11 @@ const CACHE_NAME = 'cafe-control-v1';
 const assetsToCache = [
   '/',
   'index.html',
+  'manifest.json',
   'index.tsx',
   'App.tsx',
   'types.ts',
   'metadata.json',
-  'manifest.json',
   'supabaseClient.ts',
   'components/Header.tsx',
   'components/QRScannerModal.tsx',
