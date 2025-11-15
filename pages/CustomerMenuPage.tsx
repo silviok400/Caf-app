@@ -353,7 +353,6 @@ const CustomerMenuPage: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => removeFromCart(item.productId)} className="p-1.5 rounded-full secondary-button !rounded-full"><Minus size={16} /></button>
                                     <span className="w-6 text-center font-bold">{item.quantity}</span>
-{/* Fix: The file was incomplete. Completing the file with the rest of the cart item and modal logic. */}
                                     <button onClick={() => {
                                         const product = products.find(p => p.id === item.productId);
                                         if (product) addToCart(product);

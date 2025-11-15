@@ -3,6 +3,7 @@ import { useData, defaultTheme } from '../contexts/DataContext';
 import { Product, Order, OrderStatus, Staff, UserRole, Cafe, ThemeSettings, Table } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Edit, Trash2, Download, Users, Package, BarChart2, Ban, ShieldAlert, SlidersHorizontal, Search, Hash, AlertTriangle, Paintbrush, Undo, Type, Image as ImageIcon, KeyRound, Phone, Shield, TrendingUp, DollarSign, ShoppingCart, BarChartHorizontal, QrCode, Info, Link as LinkIcon, Palette, Droplet } from 'lucide-react';
+import TableQRCodeModal from '../components/TableQRCodeModal';
 
 // Reusable Confirmation Modal
 const ConfirmationModal: React.FC<{
@@ -613,6 +614,7 @@ const SettingsManagement = memo(() => {
     const [editingCategory, setEditingCategory] = useState<string | null>(null);
     const [isDeleteLastTableModalOpen, setIsDeleteLastTableModalOpen] = useState(false);
     const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
+    const [qrCodeTable, setQrCodeTable] = useState<Table | null>(null);
 
 
     const handleSaveCategory = async (newName: string, oldName?: string) => {
@@ -660,6 +662,9 @@ const SettingsManagement = memo(() => {
                                     {table.name}
                                 </span>
                                 <div className="flex items-center gap-3">
+                                    <button onClick={() => setQrCodeTable(table)} className="text-stone-300 hover:text-white" title="Mostrar QR Code">
+                                      <QrCode size={20} />
+                                    </button>
                                     <button
                                         role="switch"
                                         aria-checked={!table.is_hidden}
@@ -783,6 +788,15 @@ const SettingsManagement = memo(() => {
                 title="Ocultar Última Mesa"
                 message={`Tem a certeza que quer ocultar a última mesa visível? A mesa com o número mais alto será ocultada. Poderá torná-la visível novamente nesta tela.`}
             />
+
+            {qrCodeTable && currentCafe && (
+                <TableQRCodeModal
+                    table={qrCodeTable}
+                    cafe={currentCafe}
+                    theme={theme}
+                    onClose={() => setQrCodeTable(null)}
+                />
+            )}
         </div>
     );
 });
