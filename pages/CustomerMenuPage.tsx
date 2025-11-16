@@ -321,13 +321,6 @@ const CustomerMenuPage: React.FC = () => {
     const [fullscreenState, setFullscreenState] = useState<'idle' | 'requested' | 'active' | 'failed'>('idle');
     const [noteText, setNoteText] = useState('');
 
-    useEffect(() => {
-        document.body.classList.add('customer-theme');
-        return () => {
-            document.body.classList.remove('customer-theme');
-        };
-    }, []);
-
     const enterFullscreen = async () => {
         try {
             await document.documentElement.requestFullscreen();
