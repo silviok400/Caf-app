@@ -1800,7 +1800,11 @@ const PlatformAdminPanel = memo(() => {
 
     const handleToggleHideServer = async () => {
         if (!currentCafe) return;
-        await updateCafe({ is_server_hidden: !currentCafe.is_server_hidden });
+        setActionError(null);
+        const result = await platformUpdateCafeVisibility(currentCafe.id, !currentCafe.is_server_hidden);
+        if (!result.success) {
+            setActionError(result.message);
+        }
     };
 
     const handlePlatformDelete = async () => {

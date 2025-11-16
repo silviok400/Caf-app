@@ -182,8 +182,10 @@ const ServerSelectionPage: React.FC = () => {
     return availableCafes
       .filter(cafe => {
         const isAdminForThisCafe = adminCafeIds.includes(cafe.id);
-        const isAdmCafeItself = cafe.id === ADM_CAFE_ID;
-        return !cafe.is_server_hidden || isAdminForThisCafe || isAdmCafeItself;
+        // The special case for the admin cafe was removed to allow it to be hidden correctly.
+        // It now relies on the `isAdminForThisCafe` flag, making its behavior
+        // consistent with other cafes.
+        return !cafe.is_server_hidden || isAdminForThisCafe;
       })
       .filter(cafe =>
         cafe.name.toLowerCase().includes(searchQuery.toLowerCase())
