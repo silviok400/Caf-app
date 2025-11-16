@@ -1082,9 +1082,9 @@ const SettingsManagement = memo(() => {
                                     {table.name}
                                 </span>
                                 <div className="flex items-center gap-3">
-                                     <button onClick={() => setQrCodeTable(table)} className="text-amber-300 hover:text-amber-200" title="Mostrar QR Code para Pedidos">
+                                     {/* <button onClick={() => setQrCodeTable(table)} className="text-amber-300 hover:text-amber-200" title="Mostrar QR Code para Pedidos">
                                         <QrCode size={20}/>
-                                    </button>
+                                    </button> */}
                                     <button
                                         role="switch"
                                         aria-checked={!table.is_hidden}
