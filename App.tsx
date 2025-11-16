@@ -13,7 +13,6 @@ import JoinServerPage from './pages/JoinServerPage';
 import FeedbackButton from './components/FeedbackButton';
 import Footer from './components/Footer';
 import { Loader2 } from 'lucide-react';
-import CustomerMenuPage from './pages/CustomerMenuPage';
 
 const App: React.FC = () => {
   return (
@@ -76,7 +75,7 @@ const Main: React.FC = () => {
   }, []); // Runs only once
 
   // Show spinner on initial app load OR when a cafe is selected but its data hasn't arrived yet.
-  if (isAppLoading || (currentCafe && staff.length === 0 && !location.pathname.startsWith('/menu/'))) {
+  if (isAppLoading || (currentCafe && staff.length === 0)) {
     return <LoadingSpinner />;
   }
 
@@ -90,20 +89,16 @@ const Main: React.FC = () => {
     }
   };
   
-  const isPublicPage = ['/select-server', '/join/', '/menu/'].some(path => location.pathname.startsWith(path));
-  
-  const requiresHeader = user && currentCafe && !isPublicPage;
-  const requiresFeedbackButton = currentCafe && !isPublicPage;
+  const requiresCafeContext = !['/select-server', '/join/:cafeId'].some(path => 
+    new RegExp(`^${path.replace(/:\w+/g, '[^/]+')}$`).test(window.location.hash.substring(1))
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
-      {requiresHeader && <Header />}
+      {user && currentCafe && requiresCafeContext && <Header />}
       <main className="flex-grow w-full">
         <div className="mx-auto w-full">
           <Routes>
-            {/* Customer-facing menu */}
-            <Route path="/menu/:cafeId/:tableId" element={<CustomerMenuPage />} />
-
             {/* Public/Entry routes that define the cafe context */}
             <Route path="/select-server" element={currentCafe ? <Navigate to="/" /> : <ServerSelectionPage />} />
             <Route path="/join/:cafeId" element={<JoinServerPage />} />
@@ -124,7 +119,7 @@ const Main: React.FC = () => {
         </div>
       </main>
       {location.pathname === '/select-server' && <Footer />}
-      {requiresFeedbackButton && <FeedbackButton />}
+      {currentCafe && requiresCafeContext && <FeedbackButton />}
     </div>
   );
 };

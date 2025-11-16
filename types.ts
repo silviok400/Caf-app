@@ -27,7 +27,7 @@ export interface Order {
   id: string;
   cafe_id: string;
   table_id: string;
-  staff_id: string | null;
+  staff_id: string;
   items: OrderItem[];
   status: OrderStatus;
   created_at: Date;
@@ -153,7 +153,7 @@ export interface DataContextType {
   setCurrentUser: (user: Staff, cafeIdForFlag?: string) => void;
   logout: () => void;
   fullLogout: () => void;
-  addOrder: (tableId: string, items: OrderItem[], isCustomer?: boolean) => Promise<Order | null>;
+  addOrder: (tableId: string, items: OrderItem[]) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   getProductById: (id: string) => Product | undefined;
   getOrdersForTable: (tableId: string) => Order[];
@@ -189,5 +189,4 @@ export interface DataContextType {
   toggleFeedbackResolved: (id: string, isResolved: boolean) => Promise<{ success: boolean; message: string; }>;
   trackTablePresence: (tableId: string) => void;
   untrackTablePresence: () => void;
-  customerCancelOrder: (orderId: string) => Promise<{ success: boolean; message: string }>;
 }

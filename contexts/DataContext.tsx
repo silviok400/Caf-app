@@ -681,20 +681,16 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_CAFE_ID);
   }, []);
 
-  const addOrder = useCallback(async (tableId: string, items: OrderItem[], isCustomer: boolean = false): Promise<Order | null> => {
-    const staffId = isCustomer ? null : user?.id;
-    if (!isCustomer && !user) return null;
-    if (!currentCafeId) return null;
+  const addOrder = useCallback(async (tableId: string, items: OrderItem[]): Promise<Order | null> => {
+    if (!user || !currentCafeId) return null;
 
+    const staffId = user.id;
     const newOrder = {
       id: uuidv4(),
       cafe_id: currentCafeId,
-      table_id: tableId, 
-      staff_id: staffId, 
-      items,
+      table_id: tableId, staff_id: staffId, items,
       status: OrderStatus.NEW,
-      created_at: new Date().toISOString(), 
-      updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     
     const { data, error } = await supabase.from('orders').insert(newOrder).select().single();
@@ -714,26 +710,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       .eq('id', orderId);
     if (error) console.error("Error updating order status:", error.message);
   }, []);
-  
-  const customerCancelOrder = useCallback(async (orderId: string): Promise<{ success: boolean; message: string; }> => {
-    const { data: order, error: fetchError } = await supabase.from('orders').select('status').eq('id', orderId).single();
-
-    if (fetchError || !order) {
-        return { success: false, message: 'Pedido não encontrado.' };
-    }
-
-    if (order.status !== OrderStatus.NEW) {
-        return { success: false, message: 'Este pedido já está em preparo e não pode ser cancelado.' };
-    }
-    
-    const { error } = await supabase.from('orders').update({ status: OrderStatus.CANCELLED, updated_at: new Date().toISOString() }).eq('id', orderId);
-    
-    if (error) {
-        return { success: false, message: `Erro ao cancelar: ${error.message}` };
-    }
-    return { success: true, message: 'Pedido cancelado.' };
-  }, []);
-
 
   const getProductById = useCallback((id: string) => products.find(p => p.id === id), [products]);
   const getOrdersForTable = useCallback((tableId: string) => orders.filter(o => o.table_id === tableId), [orders]);
@@ -1189,19 +1165,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     toggleFeedbackResolved,
     trackTablePresence,
     untrackTablePresence,
-    customerCancelOrder,
-    // FIX: A comma was missing after logout in the dependency array, causing a linting error.
   }), [
     user, staff, products, coffees, tables, orders, categories, currentCafe,
-    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, realtimeStatus, findUserByPin, setCurrentUser, logout, fullLogout, 
-    addOrder, updateOrderStatus, getProductById, getOrdersForTable,
+    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, realtimeStatus, findUserByPin, setCurrentUser, logout,
+    fullLogout, addOrder, updateOrderStatus, getProductById, getOrdersForTable,
     getTotalForTable, closeTableBill, removeItemFromOrder, updateProduct, addProduct,
     deleteProduct, addStaff, updateStaff, deleteStaff, addTable, deleteTable,
     updateTable, deleteLastTable, updateCategory, selectCafe, createCafe, deleteCafe,
     updateTheme, updateCafe, updateCurrentUserPin, updateCurrentUserPhone,
     findAdminByPhone, resetPinForUser, loginAdminByNamePinAndCafe,
     generateCreationCode, getActiveCreationCodes, platformDeleteCafe, platformUpdateCafeVisibility,
-    submitFeedback, toggleFeedbackResolved, trackTablePresence, untrackTablePresence, customerCancelOrder
+    submitFeedback, toggleFeedbackResolved, trackTablePresence, untrackTablePresence
   ]);
 
   return (

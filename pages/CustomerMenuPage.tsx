@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Product, OrderItem, Order, OrderStatus, Table } from '../types';
-import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, Bell, ThumbsUp, Star, Ban, UtensilsCrossed } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp, Star, Ban, UtensilsCrossed } from 'lucide-react';
 
 
 const ErrorDisplay: React.FC<{ message: string }> = memo(({ message }) => {
@@ -70,7 +70,7 @@ const FeedbackModal: React.FC<{ onClose: () => void }> = memo(({ onClose }) => {
     };
     
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="glass-card w-full max-w-md p-6 relative" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-full hover:bg-black/20" style={{color: 'var(--color-text-secondary)'}}>
                     <X />
@@ -160,7 +160,7 @@ const CustomerOrderStatusPage: React.FC<{
         [getOrdersForTable, table.id]
     );
 
-    const total = useMemo(() => getTotalForTable(table.id), [getOrdersForTable, table.id, activeOrders]);
+    const total = useMemo(() => getTotalForTable(table.id), [getTotalForTable, table.id, activeOrders]);
 
     const handleCancelOrder = async () => {
         if (!orderToCancel) return;
@@ -201,7 +201,7 @@ const CustomerOrderStatusPage: React.FC<{
         <>
             {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
             {orderToCancel && (
-                 <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                 <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
                     <div className="modal-content glass-card w-full max-w-sm p-6 text-center">
                         <h3 className="text-2xl font-bold font-display mb-2">Cancelar Pedido</h3>
                         <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar este pedido? Esta ação não pode ser desfeita.</p>
@@ -303,7 +303,8 @@ const ProductItem: React.FC<{ product: Product; onAddToCart: (product: Product) 
 
 const CustomerMenuPage: React.FC = () => {
     const { cafeId, tableId } = useParams<{ cafeId: string, tableId: string }>();
-    const { selectCafe, currentCafe, products, categories, addOrder, tables, isAppLoading, availableCafes } = useData();
+    const { selectCafe, currentCafe, products, categories, theme, addOrder, tables, isAppLoading, availableCafes } = useData();
+    const navigate = useNavigate();
     const menuRef = useRef<HTMLDivElement>(null);
 
     const location = useLocation();
@@ -567,9 +568,9 @@ const CustomerMenuPage: React.FC = () => {
             )}
             
             {/* Cart Modal */}
-            <div className={`modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 transition-opacity ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}></div>
-            <div className={`fixed bottom-0 left-0 right-0 glass-card z-50 transition-transform transform ${isCartOpen ? 'translate-y-0' : 'translate-y-full'} max-h-[80vh] flex flex-col !rounded-b-none !rounded-t-3xl`}>
-                <header className="p-4 border-b flex justify-between items-center flex-shrink-0" style={{borderColor: 'var(--color-glass-border)'}}>
+            <div className={`modal-backdrop fixed inset-0 bg-black bg-opacity-70 z-40 transition-opacity ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}></div>
+            <div className={`fixed bottom-0 left-0 right-0 glass-card z-50 transition-transform transform ${isCartOpen ? 'translate-y-0' : 'translate-y-full'} max-h-[80vh] flex flex-col !rounded-b-none`}>
+                <header className="p-4 border-b flex justify-between items-center" style={{borderColor: 'var(--color-glass-border)'}}>
                     <h2 className="text-2xl font-bold font-display">O seu Pedido</h2>
                     <button onClick={() => setIsCartOpen(false)} style={{color: 'var(--color-text-secondary)'}} className="p-2 rounded-full hover:bg-black/20"><X/></button>
                 </header>
@@ -615,7 +616,7 @@ const CustomerMenuPage: React.FC = () => {
 
             {/* Note editing modal */}
             {editingNote && (
-                <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
                     <div className="modal-content glass-card w-full max-w-md p-6">
                         <h3 className="text-xl font-bold font-display mb-1">Observação para:</h3>
                         <p className="mb-4" style={{color: 'var(--color-text-secondary)'}}>{editingNote.productName}</p>
