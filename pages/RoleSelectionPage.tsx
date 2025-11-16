@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Coffee, User, Shield, ArrowLeft, QrCode, X, AlertTriangle, Crown } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
-import { Cafe } from '../types';
+import { Cafe, ThemeSettings } from '../types';
 import QRCode from 'qrcode';
 
 const QRCodeModal: React.FC<{
   cafe: Cafe;
+  theme: ThemeSettings;
   onClose: () => void;
-}> = memo(({ cafe, onClose }) => {
+}> = memo(({ cafe, theme, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -18,15 +19,16 @@ const QRCodeModal: React.FC<{
     };
   }, []);
 
-  const url = `https://cafe-control-app.vercel.app/#/join/${cafe.id}`;
+  const baseUrl = window.location.href.split('#')[0];
+  const url = `${baseUrl}#/join/${cafe.id}`;
 
   useEffect(() => {
     if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, url, { width: 256, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#4f3b2a', light: '#FFFFFF' } }, (error) => {
+      QRCode.toCanvas(canvasRef.current, url, { width: 256, margin: 2, errorCorrectionLevel: 'H', color: { dark: theme.colors.primary, light: '#FFFFFF' } }, (error) => {
         if (error) console.error("Falha ao gerar QR Code:", error);
       });
     }
-  }, [url, cafe.id]);
+  }, [url, theme.colors.primary]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -149,7 +151,7 @@ const RoleSelectionPage: React.FC = () => {
       </div>
 
       {isQrModalOpen && currentCafe && (
-        <QRCodeModal cafe={currentCafe} onClose={() => setIsQrModalOpen(false)} />
+        <QRCodeModal cafe={currentCafe} theme={theme} onClose={() => setIsQrModalOpen(false)} />
       )}
     </div>
   );

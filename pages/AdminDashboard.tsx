@@ -697,7 +697,8 @@ const SettingsManagement = memo(() => {
     const [qrCodeTable, setQrCodeTable] = useState<Table | null>(null);
     const [copiedLink, setCopiedLink] = useState(false);
 
-    const shareUrl = `https://cafe-control-app.vercel.app/#/join/${currentCafe?.id}`;
+    const baseUrl = window.location.href.split('#')[0];
+    const shareUrl = `${baseUrl}#/join/${currentCafe?.id}`;
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(shareUrl);

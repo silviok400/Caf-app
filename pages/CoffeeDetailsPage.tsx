@@ -75,7 +75,7 @@ const CoffeeDetailsPage: React.FC = () => {
         if (!coffee || isSharing) return;
         setIsSharing(true);
 
-        const shareableUrl = `https://cafe-control-app.vercel.app/${window.location.hash}`;
+        const shareableUrl = window.location.href;
         const shareData = {
             title: `Café Especial: ${coffee.name}`,
             text: `Veja os detalhes sobre o ${coffee.name} no ${currentCafe?.name}!`,

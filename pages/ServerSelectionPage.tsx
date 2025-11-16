@@ -114,7 +114,8 @@ const ServerSelectionPage: React.FC = () => {
     if (isSharing) return;
     setIsSharing(true);
     
-    const shareableUrl = 'https://cafe-control-app.vercel.app/';
+    const baseUrl = window.location.href.split('#')[0];
+    const shareableUrl = baseUrl;
     const shareData = {
       title: 'Café Control',
       text: 'Experimente o Café Control, um sistema de gestão de cafés moderno!',

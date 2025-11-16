@@ -19,15 +19,16 @@ const TableQRCodeModal: React.FC<{
     };
   }, []);
 
-  const url = `https://cafe-control-app.vercel.app/#/menu/${cafe.id}/${table.id}${kioskEnabled ? '?kiosk=true' : ''}`;
+  const baseUrl = window.location.href.split('#')[0];
+  const url = `${baseUrl}#/menu/${cafe.id}/${table.id}${kioskEnabled ? '?kiosk=true' : ''}`;
 
   useEffect(() => {
     if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, url, { width: 256, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#4f3b2a', light: '#FFFFFF' } }, (error) => {
+      QRCode.toCanvas(canvasRef.current, url, { width: 256, margin: 2, errorCorrectionLevel: 'H', color: { dark: theme.colors.primary, light: '#FFFFFF' } }, (error) => {
         if (error) console.error("Falha ao gerar QR Code:", error);
       });
     }
-  }, [url]);
+  }, [url, theme.colors.primary]);
 
   const handlePrint = () => {
     const canvas = canvasRef.current;
