@@ -322,9 +322,9 @@ const CustomerMenuPage: React.FC = () => {
     const [noteText, setNoteText] = useState('');
 
     useEffect(() => {
-        document.body.classList.add('theme-light');
+        document.body.classList.add('customer-theme');
         return () => {
-            document.body.classList.remove('theme-light');
+            document.body.classList.remove('customer-theme');
         };
     }, []);
 

@@ -287,40 +287,58 @@
         overscroll-behavior: contain;
       }
 
-      /* Light Theme Overrides */
-      .theme-light {
+      /* Customer Menu Theme */
+      .customer-theme {
         --color-background: #f8f5f2;
         --color-text-primary: #4a3f35;
         --color-text-secondary: #776c62;
-        --color-glass-bg: rgba(255, 255, 255, 0.65);
-        --color-glass-border: rgba(74, 63, 53, 0.1);
-        --color-glass-border-highlight: rgba(125, 91, 65, 0.4);
-        --color-primary: #7d5b41;
-        --color-secondary: #c5a371;
-        --gradient-gold: linear-gradient(145deg, #e6c793, #c5a371, #a48454);
-        
-        /* Override body styles set by JS */
-        background-image: none !important;
+        --color-glass-bg: rgba(255, 255, 255, 0.7);
+        --color-glass-border: rgba(74, 63, 53, 0.15);
+        --color-glass-border-highlight: color-mix(in srgb, var(--color-secondary) 50%, transparent);
+
+        /* Apply a light overlay on top of the cafe's background image */
+        background-image: 
+            linear-gradient(rgba(248, 245, 242, 0.9), rgba(248, 245, 242, 0.95)), 
+            var(--body-bg-image) !important;
         background-color: var(--color-background) !important;
       }
-      .theme-light .premium-gradient-button {
-        color: #4a3f35;
+      .customer-theme .premium-gradient-button {
+        color: #382e25;
         text-shadow: none;
       }
-      .theme-light .glass-card {
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1), var(--shadow-inner);
+      .customer-theme .glass-card {
+        box-shadow: 0 8px 32px 0 rgba(74, 63, 53, 0.12), var(--shadow-inner);
       }
-      .theme-light .icon-glow {
-        filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-secondary) 50%, transparent));
+       .customer-theme .secondary-button {
+        background-color: rgba(74, 63, 53, 0.08);
+        border-color: rgba(74, 63, 53, 0.1);
+        color: var(--color-text-primary);
       }
-      .theme-light ::-webkit-scrollbar-track {
+      .customer-theme .secondary-button:hover:not(:disabled) {
+       background-color: rgba(74, 63, 53, 0.15);
+       border-color: var(--color-glass-border-highlight);
+      }
+      .customer-theme .icon-glow {
+        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-secondary) 40%, transparent));
+      }
+      .customer-theme ::-webkit-scrollbar-track {
         background: rgba(0,0,0,0.05);
       }
-      .theme-light ::-webkit-scrollbar-thumb {
-        background-color: color-mix(in srgb, var(--color-secondary) 80%, transparent);
+      .customer-theme ::-webkit-scrollbar-thumb {
+        background-color: color-mix(in srgb, var(--color-secondary) 70%, transparent);
       }
-      .theme-light .glass-input::placeholder {
-        color: color-mix(in srgb, var(--color-text-secondary) 80%, transparent);
+       .customer-theme .glass-input {
+        background: rgba(255,255,255,0.5);
+        color: var(--color-text-primary);
+        border-color: rgba(74, 63, 53, 0.15);
+      }
+      .customer-theme .glass-input::placeholder {
+        color: var(--color-text-secondary);
+        opacity: 0.8;
+      }
+      .customer-theme .glass-input:focus {
+        border-color: var(--color-glass-border-highlight);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-secondary) 20%, transparent);
       }
 
     </style>

@@ -538,9 +538,14 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
     const defaultBg = 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?q=80&w=2861&auto=format&fit=crop';
     const bgImageUrl = theme.backgroundImageUrl ? `url('${theme.backgroundImageUrl}')` : `url('${defaultBg}')`;
+    
+    // Set CSS variable for the image URL
+    document.documentElement.style.setProperty('--body-bg-image', bgImageUrl);
+    
     const bgOverlay = `linear-gradient(rgba(20, 15, 12, ${theme.backgroundOverlayOpacity}), rgba(20, 15, 12, ${theme.backgroundOverlayOpacity}))`;
     
-    document.body.style.backgroundImage = `${bgOverlay}, ${bgImageUrl}`;
+    // Combine overlay and image variable on the body
+    document.body.style.backgroundImage = `${bgOverlay}, var(--body-bg-image)`;
     document.body.style.backgroundColor = 'var(--color-background)';
     document.body.style.color = 'var(--color-text-primary)';
   }, [theme]);
