@@ -548,7 +548,7 @@ const CustomerMenuPage: React.FC = () => {
                 </header>
 
                 <main className="flex-grow">
-                    <div className="sticky top-[120px] bg-transparent backdrop-blur-sm py-2 z-10 -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
+                    <div className="sticky top-[120px] bg-black/20 backdrop-blur-sm py-2 z-10 -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
                         <div className="relative mb-3">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2" style={{color: 'var(--color-text-secondary)'}} size={20} />
                             <input
