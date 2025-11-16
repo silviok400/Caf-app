@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Product, OrderItem, Order, OrderStatus } from '../types';
-import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp, Star } from 'lucide-react';
 
 
 const ErrorDisplay: React.FC<{ message: string }> = memo(({ message }) => {
@@ -33,6 +33,108 @@ const LoadingDisplay: React.FC<{ message: string }> = memo(({ message }) => {
     );
 });
 
+const FeedbackModal: React.FC<{ onClose: () => void }> = memo(({ onClose }) => {
+    const { submitFeedback } = useData();
+    const [rating, setRating] = useState<number | null>(null);
+    const [hoverRating, setHoverRating] = useState<number | null>(null);
+    const [content, setContent] = useState('');
+    const [state, setState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState('');
+
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!content.trim() && !rating) {
+            setErrorMessage('Por favor, deixe uma classificação ou um comentário.');
+            setState('error');
+            return;
+        }
+
+        setState('submitting');
+        setErrorMessage('');
+        const result = await submitFeedback(content, rating);
+
+        if (result.success) {
+            setState('success');
+            setTimeout(onClose, 2000);
+        } else {
+            setState('error');
+            setErrorMessage(result.message);
+        }
+    };
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="glass-card w-full max-w-md p-6 relative" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-full hover:bg-black/20" style={{color: 'var(--color-text-secondary)'}}>
+                    <X />
+                </button>
+
+                {state === 'success' ? (
+                    <div className="text-center p-8">
+                        <CheckCircle size={56} className="mx-auto text-green-400 mb-4" />
+                        <h3 className="text-2xl font-bold font-display">Obrigado!</h3>
+                        <p style={{color: 'var(--color-text-secondary)'}}>O seu feedback foi enviado com sucesso.</p>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit}>
+                        <h3 className="text-2xl font-bold font-display mb-2 text-center">Deixe o seu Feedback</h3>
+                        <p className="text-center mb-4" style={{color: 'var(--color-text-secondary)'}}>A sua opinião é importante para nós.</p>
+
+                        <div className="mb-4">
+                            <p className="text-center font-semibold mb-2" style={{color: 'var(--color-text-primary)'}}>Como classifica a sua experiência?</p>
+                            <div className="flex justify-center gap-2">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                    <button
+                                        type="button"
+                                        key={star}
+                                        onClick={() => setRating(star)}
+                                        onMouseEnter={() => setHoverRating(star)}
+                                        onMouseLeave={() => setHoverRating(null)}
+                                        className="p-2 transition-transform duration-150 ease-in-out hover:scale-125"
+                                    >
+                                        <Star
+                                            size={32}
+                                            className={`transition-colors ${
+                                                (hoverRating ?? rating ?? 0) >= star
+                                                    ? 'text-amber-400 fill-current'
+                                                    : 'text-stone-500'
+                                            }`}
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            placeholder="Escreva aqui a sua mensagem..."
+                            rows={5}
+                            className="w-full glass-input"
+                        />
+
+                        {state === 'error' && <p className="text-red-400 text-sm mt-2 text-center">{errorMessage}</p>}
+                        
+                        <div className="mt-6">
+                            <button type="submit" disabled={state === 'submitting'} className="w-full premium-gradient-button py-3 text-lg flex items-center justify-center gap-3">
+                                {state === 'submitting' ? <Loader2 className="animate-spin" /> : <Send />}
+                                {state === 'submitting' ? 'A Enviar...' : 'Enviar Feedback'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
+        </div>
+    );
+});
+
 const StatusStep: React.FC<{ icon: React.ElementType; label: string; isActive: boolean; isCompleted: boolean; }> = ({ icon: Icon, label, isActive, isCompleted }) => {
     return (
         <div className="flex flex-col items-center text-center">
@@ -53,8 +155,18 @@ const StatusStep: React.FC<{ icon: React.ElementType; label: string; isActive: b
 const OrderStatusTracker: React.FC<{ 
     orderId: string; 
     onPlaceNewOrder: () => void;
-}> = memo(({ orderId, onPlaceNewOrder }) => {
+    isFirstOrder: boolean;
+}> = memo(({ orderId, onPlaceNewOrder, isFirstOrder }) => {
     const { orders, theme } = useData();
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    
+    useEffect(() => {
+        if (isFirstOrder) {
+            const timer = setTimeout(() => setIsFeedbackModalOpen(true), 2500); // Open after a small delay
+            return () => clearTimeout(timer);
+        }
+    }, [isFirstOrder]);
+    
     const trackedOrder = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId]);
 
     if (!trackedOrder) {
@@ -81,6 +193,8 @@ const OrderStatusTracker: React.FC<{
     ];
 
     return (
+        <>
+        {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
         <div className="flex flex-col items-center justify-center min-h-screen text-center p-4 animate-fade-in">
             <div className="glass-card p-6 sm:p-8 max-w-2xl w-full">
                 {status === OrderStatus.CANCELLED ? (
@@ -136,6 +250,7 @@ const OrderStatusTracker: React.FC<{
                 </button>
             </div>
         </div>
+        </>
     );
 });
 
@@ -148,6 +263,7 @@ const CustomerMenuPage: React.FC = () => {
 
     const location = useLocation();
     const isKioskMode = useMemo(() => new URLSearchParams(location.search).get('kiosk') === 'true', [location.search]);
+    const isFirstOrderInSession = useRef(!sessionStorage.getItem('customerFeedbackGiven'));
 
     const [cart, setCart] = useState<OrderItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -280,6 +396,9 @@ const CustomerMenuPage: React.FC = () => {
                     setOrderState('sent');
                     setCart([]);
                     setIsCartOpen(false);
+                    if (isFirstOrderInSession.current) {
+                        sessionStorage.setItem('customerFeedbackGiven', 'true');
+                    }
                 } else {
                     throw new Error("Order creation failed.");
                 }
@@ -334,9 +453,11 @@ const CustomerMenuPage: React.FC = () => {
          return (
             <OrderStatusTracker 
                 orderId={sentOrderId}
+                isFirstOrder={isFirstOrderInSession.current}
                 onPlaceNewOrder={() => {
                     setOrderState('idle');
                     setSentOrderId(null);
+                    isFirstOrderInSession.current = false;
                 }}
             />
         )

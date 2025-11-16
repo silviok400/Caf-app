@@ -1965,6 +1965,7 @@ const AdminDashboard: React.FC = () => {
         { id: 'reports', label: 'Relatórios', icon: BarChart2, component: <Reports /> },
         { id: 'products', label: 'Produtos', icon: Package, component: <ProductManagement /> },
         { id: 'staff', label: 'Funcionários', icon: Users, component: <StaffManagement /> },
+        { id: 'feedback', label: 'Feedback', icon: MessageSquare, component: <FeedbackManagement /> },
         { id: 'settings', label: 'Definições', icon: SlidersHorizontal, component: <SettingsManagement /> }
     ];
 
