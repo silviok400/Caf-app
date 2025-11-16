@@ -1936,7 +1936,12 @@ const PlatformAdminPanel = memo(() => {
                     <div className="pt-6 border-t" style={{borderColor: 'var(--color-glass-border)'}}>
                          <h4 className="text-lg font-semibold">Apagar Servidor de Administração</h4>
                         <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Atenção: Esta ação é permanente e irá apagar o servidor principal da plataforma. Isto irá impedir a criação de novos cafés.</p>
-                        <button onClick={() => setIsDeleteServerModalOpen(true)} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors">
+                        <button 
+                            onClick={() => setIsDeleteServerModalOpen(true)} 
+                            className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                            disabled
+                            title="Esta funcionalidade está desativada."
+                        >
                             <Trash2 /> Apagar Servidor ADM Permanentemente
                         </button>
                     </div>
