@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { useData } from '../contexts/DataContext';
 import { Table, Product, OrderItem, Order, OrderStatus } from '../types';
-import { Plus, Minus, X, Send, Receipt, Ban, Mic, Search, MessageSquarePlus, CheckCircle, Loader2 } from 'lucide-react';
+import { Plus, Minus, X, Send, Receipt, Ban, Mic, Search, MessageSquarePlus, CheckCircle, Loader2, Users } from 'lucide-react';
 
 const OrderModal: React.FC<{
   table: Table;
   onClose: () => void;
 }> = memo(({ table, onClose }) => {
-  const { products, addOrder, getOrdersForTable, closeTableBill, removeItemFromOrder, user, theme } = useData();
+  const { products, addOrder, getOrdersForTable, closeTableBill, removeItemFromOrder, user, theme, trackTablePresence, untrackTablePresence, tablePresence } = useData();
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [view, setView] = useState<'order' | 'history'>('order');
   const [itemToCancel, setItemToCancel] = useState<{orderId: string, itemIndex: number} | null>(null);
@@ -22,10 +22,12 @@ const OrderModal: React.FC<{
 
   useEffect(() => {
     document.body.classList.add('modal-open');
+    trackTablePresence(table.id);
     return () => {
       document.body.classList.remove('modal-open');
+      untrackTablePresence();
     };
-  }, []);
+  }, [table.id, trackTablePresence, untrackTablePresence]);
 
   useEffect(() => {
     // Cleanup timeout on unmount
@@ -168,6 +170,8 @@ const OrderModal: React.FC<{
     (selectedCategory === 'all' || p.category === selectedCategory) &&
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  const otherViewers = tablePresence[table.id]?.filter(p => p.user_id !== user?.id) || [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
@@ -202,6 +206,13 @@ const OrderModal: React.FC<{
           <h2 className="text-xl sm:text-3xl font-bold font-display">Pedido para {table.name}</h2>
           <button onClick={onClose} style={{color: 'var(--color-text-secondary)'}} className="p-2 rounded-full hover:bg-black/20 hover:text-white"><X size={24} /></button>
         </header>
+        
+        {otherViewers.length > 0 && (
+            <div className="flex-shrink-0 bg-blue-900/50 text-blue-200 px-4 py-2 text-sm flex items-center justify-center gap-2">
+                <Users size={16} />
+                <span><strong>{otherViewers.map(v => v.name).join(', ')}</strong> também está a ver este pedido.</span>
+            </div>
+        )}
 
         <div className="flex-grow flex flex-col md:flex-row overflow-hidden p-2 sm:p-4 gap-2 sm:gap-4">
           {/* Main content */}
@@ -406,8 +417,20 @@ const OrderModal: React.FC<{
   );
 });
 
+const ViewerIndicator: React.FC<{ name: string }> = memo(({ name }) => {
+    const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    const colors = ['#b0693a', '#3a5c53', '#5c8b9c', '#6c757d', '#4f3b2a'];
+    const color = colors[name.charCodeAt(0) % colors.length];
+
+    return (
+        <div className="viewer-indicator" style={{ backgroundColor: color }} title={name}>
+            {initials}
+        </div>
+    );
+});
+
 const WaiterDashboard: React.FC = () => {
-  const { tables, getOrdersForTable, getTotalForTable, theme } = useData();
+  const { tables, getOrdersForTable, getTotalForTable, theme, tablePresence } = useData();
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
 
   const isTableOccupied = (tableId: string) => {
@@ -424,17 +447,19 @@ const WaiterDashboard: React.FC = () => {
           const occupied = isTableOccupied(table.id);
           const total = getTotalForTable(table.id);
           const tableColor = occupied ? theme.tableColors.occupied : theme.tableColors.free;
+          const viewers = tablePresence[table.id] || [];
           return (
             <button
               key={table.id}
               onClick={() => setSelectedTable(table)}
-              className="glass-card aspect-square flex flex-col items-center justify-center p-2 sm:p-4 transition-all duration-300 glass-card-highlight"
+              className="glass-card aspect-square flex flex-col items-center justify-center p-2 sm:p-4 transition-all duration-300 glass-card-highlight relative"
               style={{
                 '--glow-color': tableColor,
                 borderColor: occupied ? tableColor : 'var(--color-glass-border)',
                 boxShadow: `var(--shadow-light), var(--shadow-inner), 0 0 16px -4px var(--glow-color)`
               } as React.CSSProperties}
             >
+              {viewers.map(viewer => <ViewerIndicator key={viewer.user_id} name={viewer.name} />)}
               <span className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">{table.name}</span>
               {occupied && (
                 <span className="mt-2 text-base sm:text-xl font-semibold text-white bg-black/40 px-3 py-1 rounded-full">€{total.toFixed(2)}</span>

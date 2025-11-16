@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Coffee, PlusCircle, Server, AlertTriangle, KeyRound, Search, ScanLine, Loader2, Shield } from 'lucide-react';
+import { Coffee, PlusCircle, AlertTriangle, KeyRound, Search, ScanLine, Loader2, Shield, Ticket, Crown } from 'lucide-react';
 import QRScannerModal from '../components/QRScannerModal';
 
 const getAdminCafeIds = (): string[] => {
@@ -91,6 +91,7 @@ const AdminAccessModal: React.FC<{
     );
 };
 
+const ADM_CAFE_ID = "5ef90427-306f-465a-9691-bec38da14a49";
 
 const ServerSelectionPage: React.FC = () => {
   const { availableCafes, selectCafe, createCafe } = useData();
@@ -98,6 +99,7 @@ const ServerSelectionPage: React.FC = () => {
   const [newCafeName, setNewCafeName] = useState('');
   const [managerName, setManagerName] = useState('');
   const [adminPin, setAdminPin] = useState('');
+  const [entryCode, setEntryCode] = useState('');
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -117,24 +119,24 @@ const ServerSelectionPage: React.FC = () => {
     const trimmedName = newCafeName.trim();
 
     if (!trimmedName || !managerName.trim()) {
-      setError('O nome do café e do gerente são obrigatórios.');
-      return;
+      return setError('O nome do café e do gerente são obrigatórios.');
     }
     if (!/^\d{6}$/.test(adminPin)) {
-      setError('O PIN do gerente deve ter exatamente 6 dígitos numéricos.');
-      return;
+      return setError('O PIN do gerente deve ter exatamente 6 dígitos numéricos.');
+    }
+    if (entryCode.length !== 15) {
+      return setError('O código de convite deve ter 15 caracteres.');
     }
     if (availableCafes.some(cafe => cafe.name.toLowerCase() === trimmedName.toLowerCase())) {
-        setError('Já existe um café com este nome. Por favor, escolha outro.');
-        return;
+        return setError('Já existe um café com este nome. Por favor, escolha outro.');
     }
     
     setIsCreating(true);
-    const success = await createCafe(trimmedName, adminPin, managerName.trim());
+    const result = await createCafe(trimmedName, adminPin, managerName.trim(), entryCode);
     setIsCreating(false);
 
-    if (!success) {
-      setError('Falha ao criar o café. Tente um nome diferente ou verifique a sua ligação.');
+    if (!result.success) {
+      setError(result.message);
     }
     // On success, the App router will handle the redirect.
   };
@@ -180,7 +182,8 @@ const ServerSelectionPage: React.FC = () => {
     return availableCafes
       .filter(cafe => {
         const isAdminForThisCafe = adminCafeIds.includes(cafe.id);
-        return !cafe.is_server_hidden || isAdminForThisCafe;
+        const isAdmCafeItself = cafe.id === ADM_CAFE_ID;
+        return !cafe.is_server_hidden || isAdminForThisCafe || isAdmCafeItself;
       })
       .filter(cafe =>
         cafe.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -253,17 +256,18 @@ const ServerSelectionPage: React.FC = () => {
                 filteredCafes.length > 0 ? (
                     <div className="space-y-3 max-h-48 overflow-y-auto pr-2 -mr-2">
                     {filteredCafes.map(cafe => {
+                        const isAdminCafe = cafe.id === ADM_CAFE_ID;
                         const isPrivateButVisible = cafe.is_server_hidden && adminCafeIds.includes(cafe.id);
                         return (
                             <button
                                 key={cafe.id}
                                 onClick={() => handleSelectCafe(cafe.id)}
-                                className="w-full glass-card glass-card-highlight !rounded-2xl font-bold py-3 text-lg flex items-center justify-center gap-3 relative"
-                                title={isPrivateButVisible ? "Este café está oculto mas é visível porque acedeu como gerente." : ""}
+                                className={`w-full glass-card glass-card-highlight !rounded-2xl font-bold py-3 text-lg flex items-center justify-center gap-3 relative ${isAdminCafe ? 'shadow-lg shadow-amber-400/30 !border-amber-400/50' : ''}`}
+                                title={isPrivateButVisible && !isAdminCafe ? "Este café está oculto mas é visível porque acedeu como gerente." : isAdminCafe ? "Acesso à Plataforma de Administração" : ""}
                             >
-                                <Server size={22} />
+                                {isAdminCafe ? <Crown size={22} className="text-amber-300 icon-glow"/> : <Coffee size={22} />}
                                 <span>{cafe.name}</span>
-                                {isPrivateButVisible && (
+                                {isPrivateButVisible && !isAdminCafe && (
                                     <Shield size={18} className="text-amber-300 opacity-80 absolute top-2 right-3" />
                                 )}
                             </button>
@@ -304,6 +308,17 @@ const ServerSelectionPage: React.FC = () => {
                             onChange={(e) => { setAdminPin(e.target.value.replace(/\D/g, '')); setError(''); }}
                             placeholder="PIN do Gerente (6 dígitos)"
                             maxLength={6}
+                            className="w-full glass-input pl-12 text-center text-lg"
+                        />
+                    </div>
+                     <div className="relative">
+                        <Ticket size={20} className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{color: 'var(--color-text-secondary)'}}/>
+                        <input
+                            type="text"
+                            value={entryCode}
+                            onChange={(e) => { setEntryCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()); setError(''); }}
+                            placeholder="Código de Convite (15 caracteres)"
+                            maxLength={15}
                             className="w-full glass-input pl-12 text-center text-lg"
                         />
                     </div>

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-import { Product, Order, Table, Staff, UserRole, OrderStatus, OrderItem, Cafe, ThemeSettings, DataContextType, Coffee } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react';
+import { Product, Order, Table, Staff, UserRole, OrderStatus, OrderItem, Cafe, ThemeSettings, DataContextType, Coffee, CreationCode, Feedback, TablePresence } from '../types';
 import { supabase } from '../supabaseClient';
-import { PostgrestError } from '@supabase/supabase-js';
+import { PostgrestError, RealtimeChannel } from '@supabase/supabase-js';
 
 /*
   ====================================================================================
@@ -17,6 +17,7 @@ import { PostgrestError } from '@supabase/supabase-js';
 
 */
 
+const ADM_CAFE_ID = "5ef90427-306f-465a-9691-bec38da14a49";
 
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -68,6 +69,42 @@ export const defaultTheme: ThemeSettings = {
     },
     layout: {
         cardBorderRadius: 28,
+    },
+    hideManagerLogin: false,
+};
+
+const adminTheme: ThemeSettings = {
+    logoUrl: '',
+    backgroundImageUrl: 'https://images.unsplash.com/photo-1549747688-4141515937e2?q=80&w=2864&auto=format&fit=crop',
+    backgroundOverlayOpacity: 0.65,
+    colors: {
+      primary: '#333333',
+      secondary: '#D4AF37',
+      background: '#0a0a0a',
+      textPrimary: '#f0f0f0',
+      textSecondary: '#a0a0a0',
+      glassBackground: 'rgba(10, 10, 10, 0.5)',
+      glassBorder: 'rgba(212, 175, 55, 0.2)',
+      glassBorderHighlight: 'rgba(212, 175, 55, 0.5)',
+    },
+    tableColors: {
+        free: '#3a5c53',
+        occupied: '#b0693a',
+    },
+    statusColors: {
+        new: '#b0693a',
+        preparing: '#d9b782',
+        ready: '#3a5c53',
+        served: '#5c8b9c',
+        paid: '#6c757d',
+        cancelled: '#495057',
+    },
+    fonts: {
+        body: "'Inter', sans-serif",
+        display: "'Playfair Display', serif",
+    },
+    layout: {
+        cardBorderRadius: 12,
     },
     hideManagerLogin: false,
 };
@@ -139,14 +176,22 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [coffees, setCoffees] = useState<Coffee[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [dbTheme, setDbTheme] = useState<any | null>(null);
+  const [feedbackSubmissions, setFeedbackSubmissions] = useState<Feedback[]>([]);
+  const [tablePresence, setTablePresence] = useState<TablePresence>({});
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
 
   const currentCafe = useMemo(() => availableCafes.find(c => c.id === currentCafeId) || null, [availableCafes, currentCafeId]);
+
+  const isAdmCafe = useMemo(() => currentCafe?.id === ADM_CAFE_ID, [currentCafe]);
 
   // The final theme object is derived from the theme settings in the DB.
   // It no longer contains cafe-specific properties like name or visibility.
   const theme: ThemeSettings = useMemo(() => {
+    if (isAdmCafe) {
+      return adminTheme;
+    }
     return mergeDbThemeIntoSettings(dbTheme);
-  }, [dbTheme]);
+  }, [dbTheme, isAdmCafe]);
 
   // Fetch all available cafes on initial load
   useEffect(() => {
@@ -197,19 +242,29 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   // This prevents unnecessary data reloads and the "refresh" effect the user was seeing.
   const loadDataForCafe = useCallback(async (cafeId: string) => {
       setIsAppLoading(true);
+      const dataPromises = [
+          supabase.from('staff').select('*').eq('cafe_id', cafeId),
+          supabase.from('products').select('*').eq('cafe_id', cafeId),
+          supabase.from('tables').select('*').eq('cafe_id', cafeId),
+          supabase.from('orders').select('*').eq('cafe_id', cafeId),
+          supabase.from('theme_settings').select('*').eq('cafe_id', cafeId).maybeSingle(),
+      ];
+
+      // If it's the admin cafe, also fetch all feedback
+      if (cafeId === ADM_CAFE_ID) {
+          dataPromises.push(supabase.from('feedback').select('*').order('created_at', { ascending: false }));
+      } else {
+          setFeedbackSubmissions([]); // Clear feedback if not admin
+      }
+      
       const [
           staffRes,
           productsRes,
           tablesRes,
           ordersRes,
           themeRes,
-      ] = await Promise.all([
-          supabase.from('staff').select('*').eq('cafe_id', cafeId),
-          supabase.from('products').select('*').eq('cafe_id', cafeId),
-          supabase.from('tables').select('*').eq('cafe_id', cafeId),
-          supabase.from('orders').select('*').eq('cafe_id', cafeId),
-          supabase.from('theme_settings').select('*').eq('cafe_id', cafeId).maybeSingle(),
-      ]);
+          feedbackRes
+      ] = await Promise.all(dataPromises);
 
       if (staffRes.data) setStaff(staffRes.data);
       if (productsRes.data) setProducts(productsRes.data);
@@ -224,6 +279,10 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (ordersRes.data) setOrders(ordersRes.data.map(o => ({...o, created_at: new Date(o.created_at), updated_at: new Date(o.updated_at)})));
       setDbTheme(themeRes.data || null);
       
+      if (feedbackRes && feedbackRes.data) {
+          setFeedbackSubmissions(feedbackRes.data as Feedback[]);
+      }
+
       setIsAppLoading(false);
   }, []);
 
@@ -240,6 +299,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       // Fix: Reset coffees state when no cafe is selected.
       setCoffees([]);
       setDbTheme(null);
+      setFeedbackSubmissions([]);
       setIsAppLoading(false);
     }
   }, [currentCafeId, loadDataForCafe]);
@@ -257,6 +317,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   useEffect(() => {
     if (!currentCafeId) return;
 
+    const channels = [];
+    
     const ordersChannel = supabase.channel(`rt-orders-cafe-${currentCafeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `cafe_id=eq.${currentCafeId}` },
         (payload) => {
@@ -272,6 +334,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           }
         }
       ).subscribe();
+    channels.push(ordersChannel);
     
     const productsChannel = supabase.channel(`rt-products-cafe-${currentCafeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `cafe_id=eq.${currentCafeId}` },
@@ -282,7 +345,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           } else if (payload.eventType === 'UPDATE') {
             setProducts(current => current.map(p => p.id === payload.new.id ? payload.new as Product : p));
           }
-          // NOTE: DELETE events are now handled via broadcast for reliability.
         }
       )
       .on('broadcast', { event: 'product-deleted' }, ({ payload }) => {
@@ -290,6 +352,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           setProducts(current => current.filter(p => p.id !== payload.id));
       })
       .subscribe();
+    channels.push(productsChannel);
     
     const staffChannel = supabase.channel(`rt-staff-cafe-${currentCafeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'staff', filter: `cafe_id=eq.${currentCafeId}` },
@@ -300,7 +363,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           } else if (payload.eventType === 'UPDATE') {
             setStaff(current => current.map(s => s.id === payload.new.id ? payload.new as Staff : s));
           }
-          // NOTE: DELETE events are now handled via broadcast for reliability.
         }
       )
       .on('broadcast', { event: 'staff-deleted' }, ({ payload }) => {
@@ -308,6 +370,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           setStaff(current => current.filter(s => s.id !== payload.id));
       })
       .subscribe();
+    channels.push(staffChannel);
 
     const tablesChannel = supabase.channel(`rt-tables-cafe-${currentCafeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `cafe_id=eq.${currentCafeId}` },
@@ -354,6 +417,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
       })
       .subscribe();
+    channels.push(tablesChannel);
     
     const themeChannel = supabase.channel(`rt-theme-cafe-${currentCafeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'theme_settings', filter: `cafe_id=eq.${currentCafeId}` },
@@ -366,13 +430,27 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           }
         }
       ).subscribe();
+    channels.push(themeChannel);
+
+    if (currentCafeId === ADM_CAFE_ID) {
+      const feedbackChannel = supabase.channel('rt-feedback-all')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback' },
+          (payload) => {
+            console.log('Realtime Feedback Change:', payload);
+            if (payload.eventType === 'INSERT') {
+                setFeedbackSubmissions(current => [payload.new as Feedback, ...current].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+            } else if (payload.eventType === 'UPDATE') {
+                setFeedbackSubmissions(current => current.map(f => f.id === payload.new.id ? payload.new as Feedback : f));
+            } else if (payload.eventType === 'DELETE') {
+                setFeedbackSubmissions(current => current.filter(f => f.id !== payload.old.id));
+            }
+          }
+        ).subscribe();
+      channels.push(feedbackChannel);
+    }
 
     return () => {
-      supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(productsChannel);
-      supabase.removeChannel(staffChannel);
-      supabase.removeChannel(tablesChannel);
-      supabase.removeChannel(themeChannel);
+      channels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [currentCafeId]);
 
@@ -421,20 +499,39 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     }
   }, [currentCafeId]);
 
-  const createCafe = useCallback(async (name: string, adminPin: string, managerName: string): Promise<boolean> => {
+  const createCafe = useCallback(async (name: string, adminPin: string, managerName: string, entryCode: string): Promise<{ success: boolean, message: string }> => {
     let cafeData: Cafe | null = null;
     try {
-        // 1. Create Cafe
-        const { data, error: cafeError } = await supabase.from('cafes').insert({ name, is_server_hidden: true }).select().single();
-        if (cafeError || !data) { throw cafeError || new Error("Failed to create cafe entry."); }
-        cafeData = data;
+        // 1. Validate Entry Code
+        const { data: codeData, error: codeError } = await supabase
+            .from('creation_codes')
+            .select('*')
+            .eq('code', entryCode.toUpperCase())
+            .single();
+
+        if (codeError || !codeData) {
+            return { success: false, message: 'Código de convite inválido.' };
+        }
+        if (codeData.is_used) {
+            return { success: false, message: 'Este código de convite já foi utilizado.' };
+        }
+
+        const codeAge = (new Date().getTime() - new Date(codeData.created_at).getTime()) / 1000 / 60; // in minutes
+        if (codeAge > 15) {
+            return { success: false, message: 'O código de convite expirou (validade de 15 minutos).' };
+        }
+
+        // 2. Create Cafe if code is valid
+        const { data: newCafeData, error: cafeError } = await supabase.from('cafes').insert({ name, is_server_hidden: true }).select().single();
+        if (cafeError || !newCafeData) { throw cafeError || new Error("Failed to create cafe entry."); }
+        cafeData = newCafeData;
         
         // Add to local state immediately to fix navigation race condition
         setAvailableCafes(current => [...current, cafeData as Cafe]);
         
         const cafe_id = cafeData.id;
 
-        // 2. Create default data
+        // 3. Create default data
         const new_staff = initialStaff.map(s => ({ ...s, id: uuidv4(), cafe_id, ...(s.role === 'admin' && { pin: adminPin, name: managerName }) }));
         const new_products = initialProducts.map(p => ({ ...p, id: uuidv4(), cafe_id }));
         const new_tables = initialTables.map(t => ({...t, id: uuidv4(), cafe_id, is_hidden: false }));
@@ -442,19 +539,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         const { colors, fonts, ...restOfTheme } = defaultTheme;
         const new_theme_for_db = {
           cafe_id,
-          colors: {
-            ...colors,
-            tableColors: defaultTheme.tableColors,
-            statusColors: defaultTheme.statusColors,
-          },
-          fonts: {
-            ...fonts,
-            _logoUrl: restOfTheme.logoUrl,
-            _hideManagerLogin: restOfTheme.hideManagerLogin,
-            _backgroundImageUrl: restOfTheme.backgroundImageUrl,
-            _backgroundOverlayOpacity: restOfTheme.backgroundOverlayOpacity,
-            _layout: restOfTheme.layout,
-          },
+          colors: { ...colors, tableColors: defaultTheme.tableColors, statusColors: defaultTheme.statusColors },
+          fonts: { ...fonts, _logoUrl: restOfTheme.logoUrl, _hideManagerLogin: restOfTheme.hideManagerLogin, _backgroundImageUrl: restOfTheme.backgroundImageUrl, _backgroundOverlayOpacity: restOfTheme.backgroundOverlayOpacity, _layout: restOfTheme.layout },
         };
 
         const results = await Promise.all([
@@ -463,13 +549,16 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             supabase.from('tables').insert(new_tables),
             supabase.from('theme_settings').insert(new_theme_for_db)
         ]);
-
         results.forEach(result => { if (result.error) throw result.error; });
 
-        // On complete success, the realtime subscription will update the cafe list.
+        // 4. Mark code as used
+        const { error: updateCodeError } = await supabase.from('creation_codes').update({ is_used: true }).eq('code', entryCode.toUpperCase());
+        if (updateCodeError) throw updateCodeError;
+
+
         localStorage.setItem(`${LOCAL_STORAGE_KEYS.IS_ADMIN_DEVICE_PREFIX}${cafe_id}`, 'true');
         selectCafe(cafe_id);
-        return true;
+        return { success: true, message: 'Café criado com sucesso!' };
 
     } catch (error) {
         const err = error as PostgrestError;
@@ -479,12 +568,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         console.error("Full Error Object:", error);
         console.error("------------------------------------");
 
-        // Cleanup if cafe was created but other steps failed
         if (cafeData?.id) {
             console.warn(`Attempting to clean up partially created cafe: ${cafeData.id}`);
             await supabase.from('cafes').delete().eq('id', cafeData.id);
         }
-        return false;
+        return { success: false, message: `Ocorreu um erro: ${err.message}` };
     }
   }, [selectCafe]);
   
@@ -831,6 +919,127 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         return { success: false, message: 'Nome do gerente ou PIN incorretos.' };
       }
   }, [availableCafes, selectCafe, setCurrentUser]);
+  
+  const generateCreationCode = useCallback(async (): Promise<{ error: string | null }> => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 15; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const { error } = await supabase.from('creation_codes').insert({ code });
+    if (error) {
+        console.error("Error generating creation code:", error.message);
+        return { error: error.message };
+    }
+    return { error: null };
+  }, []);
+
+  const getActiveCreationCodes = useCallback(async (): Promise<{ data: CreationCode[] | null; error: string | null }> => {
+      const { data, error } = await supabase
+        .from('creation_codes')
+        .select('*')
+        .eq('is_used', false);
+      
+      if (error) {
+        console.error("Error fetching active creation codes:", error.message);
+        return { data: null, error: error.message };
+      }
+      return { data, error: null };
+  }, []);
+
+  const platformDeleteCafe = useCallback(async (cafeId: string): Promise<{ success: boolean; message: string; }> => {
+    if (cafeId === ADM_CAFE_ID) {
+        return { success: false, message: "O café de administração não pode ser apagado por esta via." };
+    }
+    try {
+        const { error } = await supabase.from('cafes').delete().eq('id', cafeId);
+        if (error) throw error;
+        // Realtime will handle UI updates
+        return { success: true, message: "Café apagado com sucesso." };
+    } catch (error) {
+        const err = error as PostgrestError;
+        console.error("Error during platform cafe deletion:", err);
+        return { success: false, message: `Erro ao apagar café: ${err.message}` };
+    }
+  }, []);
+
+  const platformUpdateCafeVisibility = useCallback(async (cafeId: string, isHidden: boolean): Promise<{ success: boolean; message: string; }> => {
+    try {
+        const { error } = await supabase.from('cafes').update({ is_server_hidden: isHidden }).eq('id', cafeId);
+        if (error) throw error;
+        // Realtime will handle UI updates
+        return { success: true, message: "Visibilidade do café atualizada." };
+    } catch (error) {
+        const err = error as PostgrestError;
+        console.error("Error updating platform cafe visibility:", err);
+        return { success: false, message: `Erro ao atualizar visibilidade: ${err.message}` };
+    }
+  }, []);
+
+  const submitFeedback = useCallback(async (content: string, rating: number | null): Promise<{ success: boolean; message: string; }> => {
+    const feedbackData = {
+      content,
+      rating,
+      user_id: user?.id || null,
+      user_name: user?.name || 'Cliente Anónimo',
+      cafe_id: currentCafe?.id || null,
+      cafe_name: currentCafe?.name || 'N/A',
+      context_url: window.location.hash,
+    };
+    const { error } = await supabase.from('feedback').insert(feedbackData);
+    if (error) {
+        console.error('Error submitting feedback:', error);
+        return { success: false, message: `Falha ao enviar feedback: ${error.message}` };
+    }
+    return { success: true, message: 'Feedback enviado com sucesso!' };
+  }, [user, currentCafe]);
+
+  const toggleFeedbackResolved = useCallback(async (id: string, isResolved: boolean): Promise<{ success: boolean; message: string; }> => {
+      const { error } = await supabase.from('feedback').update({ is_resolved: isResolved }).eq('id', id);
+      if (error) {
+          console.error('Error updating feedback status:', error);
+          return { success: false, message: error.message };
+      }
+      return { success: true, message: 'Status atualizado.' };
+  }, []);
+
+  const untrackTablePresence = useCallback(() => {
+      if (presenceChannelRef.current) {
+          supabase.removeChannel(presenceChannelRef.current);
+          presenceChannelRef.current = null;
+      }
+  }, []);
+
+  const trackTablePresence = useCallback((tableId: string) => {
+      if (!user || !currentCafeId) return;
+
+      untrackTablePresence(); // Leave previous channel if any
+
+      const channel = supabase.channel(`table-presence:${tableId}`, {
+          config: {
+              presence: {
+                  key: user.id,
+              },
+          },
+      });
+      
+      channel.on('presence', { event: 'sync' }, () => {
+          const newState = channel.presenceState<{ name: string }>();
+          const presenceList: { user_id: string; name: string }[] = [];
+          for (const key in newState) {
+              presenceList.push({ user_id: key, name: newState[key][0].name });
+          }
+          setTablePresence(prev => ({...prev, [tableId]: presenceList}));
+      });
+
+      channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+              await channel.track({ name: user.name });
+          }
+      });
+
+      presenceChannelRef.current = channel;
+  }, [user, currentCafeId, untrackTablePresence]);
 
 
   const value: DataContextType = useMemo(() => ({
@@ -846,6 +1055,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     availableCafes,
     theme,
     isAppLoading,
+    isAdmCafe,
+    feedbackSubmissions,
+    tablePresence,
     findUserByPin,
     setCurrentUser,
     logout,
@@ -878,15 +1090,25 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     findAdminByPhone,
     resetPinForUser,
     loginAdminByNamePinAndCafe,
+    generateCreationCode,
+    getActiveCreationCodes,
+    platformDeleteCafe,
+    platformUpdateCafeVisibility,
+    submitFeedback,
+    toggleFeedbackResolved,
+    trackTablePresence,
+    untrackTablePresence,
   }), [
     user, staff, products, coffees, tables, orders, categories, currentCafe,
-    availableCafes, theme, isAppLoading, findUserByPin, setCurrentUser, logout,
+    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, findUserByPin, setCurrentUser, logout,
     fullLogout, addOrder, updateOrderStatus, getProductById, getOrdersForTable,
     getTotalForTable, closeTableBill, removeItemFromOrder, updateProduct, addProduct,
     deleteProduct, addStaff, updateStaff, deleteStaff, addTable, deleteTable,
     updateTable, deleteLastTable, updateCategory, selectCafe, createCafe, deleteCafe,
     updateTheme, updateCafe, updateCurrentUserPin, updateCurrentUserPhone,
-    findAdminByPhone, resetPinForUser, loginAdminByNamePinAndCafe
+    findAdminByPhone, resetPinForUser, loginAdminByNamePinAndCafe,
+    generateCreationCode, getActiveCreationCodes, platformDeleteCafe, platformUpdateCafeVisibility,
+    submitFeedback, toggleFeedbackResolved, trackTablePresence, untrackTablePresence
   ]);
 
   return (

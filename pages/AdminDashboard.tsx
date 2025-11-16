@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, memo, useCallback } from 'react';
 import { useData, defaultTheme } from '../contexts/DataContext';
-import { Product, Order, OrderStatus, Staff, UserRole, Cafe, ThemeSettings, Table } from '../types';
+import { Product, Order, OrderStatus, Staff, UserRole, Cafe, ThemeSettings, Table, CreationCode, Feedback } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Edit, Trash2, Download, Users, Package, BarChart2, Ban, ShieldAlert, SlidersHorizontal, Search, Hash, AlertTriangle, Paintbrush, Undo, Type, Image as ImageIcon, KeyRound, Phone, Shield, TrendingUp, DollarSign, ShoppingCart, BarChartHorizontal, QrCode, Info, Link as LinkIcon, Palette, Droplet } from 'lucide-react';
+// Fix: Import 'Coffee' icon from 'lucide-react'.
+import { PlusCircle, Edit, Trash2, Download, Users, Package, BarChart2, Ban, ShieldAlert, SlidersHorizontal, Search, Hash, AlertTriangle, Paintbrush, Undo, Type, Image as ImageIcon, KeyRound, Phone, Shield, TrendingUp, DollarSign, ShoppingCart, BarChartHorizontal, QrCode, Info, Link as LinkIcon, Palette, Droplet, Copy, Check, Clock, Coffee, Loader2, Server, EyeOff, Eye, Ticket, MessageSquare, Star, User as UserIcon, Crown } from 'lucide-react';
 import TableQRCodeModal from '../components/TableQRCodeModal';
 
 // Reusable Confirmation Modal
@@ -129,11 +130,15 @@ const DeleteServerConfirmationModal: React.FC<{
   onClose: () => void;
 }> = memo(({ isOpen, cafe, onConfirm, onClose }) => {
   const [pin, setPin] = useState('');
+  const [cafeNameInput, setCafeNameInput] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       document.body.classList.add('modal-open');
+      setPin('');
+      setCafeNameInput('');
+      setError('');
     } else {
       document.body.classList.remove('modal-open');
     }
@@ -152,6 +157,8 @@ const DeleteServerConfirmationModal: React.FC<{
       setPin('');
     }
   };
+  
+  const isConfirmationDisabled = pin.length !== 6 || cafeNameInput.trim().toLowerCase() !== cafe.name.toLowerCase();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -163,10 +170,20 @@ const DeleteServerConfirmationModal: React.FC<{
         </div>
         <h3 className="text-2xl font-bold font-display mb-2">Apagar Servidor</h3>
         <p style={{color: 'var(--color-text-secondary)'}} className="mb-4">
-          Esta ação é irreversível e apagará todos os dados de <strong>"{cafe.name}"</strong>.
+          Esta ação é irreversível. Para confirmar, digite <strong>"{cafe.name}"</strong> e o seu PIN de gerente.
         </p>
-        <p style={{color: 'var(--color-text-secondary)'}} className="mb-6">Para confirmar, insira o PIN de 6 dígitos do gerente.</p>
-        
+
+        <div className="mb-4">
+          <input
+            type="text"
+            value={cafeNameInput}
+            onChange={(e) => setCafeNameInput(e.target.value)}
+            className="w-full glass-input text-center text-lg"
+            placeholder="Digite o nome do café"
+            autoFocus
+          />
+        </div>
+
         <div className="mb-4">
           <input
             type="password"
@@ -174,8 +191,7 @@ const DeleteServerConfirmationModal: React.FC<{
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
             maxLength={6}
             className="w-full glass-input text-center text-lg tracking-[.5em]"
-            placeholder="******"
-            autoFocus
+            placeholder="PIN de 6 dígitos"
           />
         </div>
 
@@ -189,7 +205,7 @@ const DeleteServerConfirmationModal: React.FC<{
           <button onClick={onClose} className="w-full secondary-button font-bold py-3">
             Cancelar
           </button>
-          <button onClick={handleConfirm} disabled={pin.length !== 6} className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700 transition-colors disabled:bg-stone-400">
+          <button onClick={handleConfirm} disabled={isConfirmationDisabled} className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700 transition-colors disabled:bg-stone-400 disabled:opacity-60">
             Confirmar Exclusão
           </button>
         </div>
@@ -197,6 +213,70 @@ const DeleteServerConfirmationModal: React.FC<{
     </div>
   );
 });
+
+const PlatformDeleteCafeConfirmationModal: React.FC<{
+  isOpen: boolean;
+  cafe: Cafe | null;
+  onConfirm: () => void;
+  onClose: () => void;
+}> = memo(({ isOpen, cafe, onConfirm, onClose }) => {
+    const [cafeNameInput, setCafeNameInput] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.classList.add('modal-open');
+            setCafeNameInput(''); // Reset on open
+        } else {
+            document.body.classList.remove('modal-open');
+        }
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, [isOpen]);
+
+    if (!isOpen || !cafe) return null;
+
+    const isConfirmationDisabled = cafeNameInput.trim().toLowerCase() !== cafe.name.toLowerCase();
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-card w-full max-w-sm p-6 text-center">
+                <div className="flex justify-center mb-4">
+                    <div className="w-16 h-16 bg-red-900/40 rounded-full flex items-center justify-center">
+                        <ShieldAlert size={40} className="text-red-300" />
+                    </div>
+                </div>
+                <h3 className="text-2xl font-bold font-display mb-2">Apagar Café</h3>
+                <p style={{color: 'var(--color-text-secondary)'}} className="mb-6">
+                    Para confirmar a exclusão permanente de <strong>"{cafe.name}"</strong>, por favor, digite o nome do café abaixo.
+                </p>
+                <div className="mb-6">
+                    <input
+                        type="text"
+                        value={cafeNameInput}
+                        onChange={(e) => setCafeNameInput(e.target.value)}
+                        className="w-full glass-input text-center text-lg"
+                        placeholder="Digite o nome do café"
+                        autoFocus
+                    />
+                </div>
+                <div className="flex justify-center gap-4">
+                    <button onClick={onClose} className="w-full secondary-button font-bold py-3">
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isConfirmationDisabled}
+                        className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700 transition-colors disabled:bg-stone-400 disabled:opacity-60"
+                    >
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 
 const FONT_OPTIONS = {
     display: [
@@ -1561,9 +1641,324 @@ const Reports = memo(() => {
     );
 });
 
+const Countdown: React.FC<{ createdAt: string }> = ({ createdAt }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const startTime = new Date(createdAt).getTime();
+      const now = new Date().getTime();
+      const difference = startTime + (15 * 60 * 1000) - now;
+
+      if (difference <= 0) {
+        setTimeLeft('Expirado');
+        return;
+      }
+
+      const minutes = Math.floor((difference / 1000 / 60) % 60);
+      const seconds = Math.floor((difference / 1000) % 60);
+
+      setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(interval);
+  }, [createdAt]);
+
+  return <span className={`font-mono ${timeLeft === 'Expirado' ? 'text-red-400' : 'text-stone-300'}`}>{timeLeft}</span>;
+};
+
+const FeedbackManagement = memo(() => {
+    const { feedbackSubmissions, toggleFeedbackResolved } = useData();
+
+    if (feedbackSubmissions.length === 0) {
+        return (
+            <div className="text-center py-16 glass-card">
+                <MessageSquare size={48} className="mx-auto text-stone-400" />
+                <h3 className="mt-4 text-xl font-semibold">Nenhum feedback recebido</h3>
+                <p className="mt-1" style={{color: 'var(--color-text-secondary)'}}>Ainda não há feedbacks de utilizadores para mostrar.</p>
+            </div>
+        );
+    }
+    
+    return (
+        <div className="space-y-4">
+            {feedbackSubmissions.map(fb => (
+                <div key={fb.id} className="glass-card !bg-black/20 p-4 rounded-2xl border-l-4" style={{ borderColor: fb.is_resolved ? 'var(--color-table-free)' : 'var(--color-secondary)' }}>
+                    <div className="flex justify-between items-start gap-4">
+                        <div className="flex-grow">
+                            <div className="flex items-center gap-4 mb-2">
+                                {fb.rating && (
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} size={16} className={i < fb.rating! ? 'text-amber-400 fill-current' : 'text-stone-500'} />
+                                        ))}
+                                    </div>
+                                )}
+                                <span className="text-sm font-semibold flex items-center gap-2" title={fb.cafe_name || 'Café não especificado'}>
+                                    <Coffee size={14}/> {fb.cafe_name || 'N/A'}
+                                </span>
+                                <span className="text-sm font-semibold flex items-center gap-2" title={`Utilizador: ${fb.user_name || 'Anónimo'}`}>
+                                    <UserIcon size={14}/> {fb.user_name || 'N/A'}
+                                </span>
+                            </div>
+                            <p className="text-base" style={{color: 'var(--color-text-primary)'}}>{fb.content}</p>
+                            <p className="text-xs mt-2" style={{color: 'var(--color-text-secondary)'}}>
+                                {new Date(fb.created_at).toLocaleString('pt-PT')}
+                            </p>
+                        </div>
+                        <div className="flex flex-col items-center gap-2">
+                             <label htmlFor={`resolved-${fb.id}`} className="text-xs font-bold cursor-pointer">{fb.is_resolved ? 'Resolvido' : 'Pendente'}</label>
+                             <button
+                                id={`resolved-${fb.id}`}
+                                role="switch"
+                                aria-checked={fb.is_resolved}
+                                onClick={() => toggleFeedbackResolved(fb.id, !fb.is_resolved)}
+                                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-background)] ${fb.is_resolved ? 'bg-green-600' : 'bg-stone-600'}`}
+                                style={{'--tw-ring-color': 'var(--color-secondary)'} as React.CSSProperties}
+                            >
+                                <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${fb.is_resolved ? 'translate-x-6' : 'translate-x-1'}`}/>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+});
+
+const PlatformAdminPanel = memo(() => {
+    const { 
+        currentCafe, 
+        deleteCafe, 
+        updateCafe, 
+        availableCafes, 
+        platformDeleteCafe, 
+        platformUpdateCafeVisibility,
+        generateCreationCode, 
+        getActiveCreationCodes
+    } = useData();
+    const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
+    const [cafeToDelete, setCafeToDelete] = useState<Cafe | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    const [activeCodes, setActiveCodes] = useState<CreationCode[]>([]);
+    const [isLoadingCodes, setIsLoadingCodes] = useState(true);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [copiedCode, setCopiedCode] = useState<string | null>(null);
+    const [codesError, setCodesError] = useState<string | null>(null);
+
+    const fetchCodes = useCallback(async () => {
+        setIsLoadingCodes(true);
+        setCodesError(null);
+        const result = await getActiveCreationCodes();
+        if (result.error) {
+            setCodesError(`Falha ao carregar códigos: ${result.error}. Verifique as permissões (RLS) da tabela 'creation_codes'.`);
+            setActiveCodes([]);
+        } else if (result.data) {
+            const validCodes = result.data.filter(code => {
+                const ageInMinutes = (new Date().getTime() - new Date(code.created_at).getTime()) / (1000 * 60);
+                return ageInMinutes < 15;
+            });
+            setActiveCodes(validCodes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        }
+        setIsLoadingCodes(false);
+    }, [getActiveCreationCodes]);
+
+    useEffect(() => {
+        fetchCodes();
+        const interval = setInterval(fetchCodes, 10000);
+        return () => clearInterval(interval);
+    }, [fetchCodes]);
+
+    const handleGenerateCode = async () => {
+        setIsGenerating(true);
+        setCodesError(null);
+        const result = await generateCreationCode();
+        if (result.error) {
+            setCodesError(`Falha ao gerar código: ${result.error}. Verifique as permissões (RLS) da tabela 'creation_codes'.`);
+        } else {
+            await fetchCodes();
+        }
+        setIsGenerating(false);
+    };
+
+    const handleCopyCode = (code: string) => {
+        navigator.clipboard.writeText(code);
+        setCopiedCode(code);
+        setTimeout(() => setCopiedCode(null), 2000);
+    };
+
+    const handleConfirmServerDelete = async (pin: string): Promise<boolean> => {
+        if (!currentCafe) return false;
+        const success = await deleteCafe(currentCafe.id, pin);
+        if (success) setIsDeleteServerModalOpen(false);
+        return success;
+    };
+
+    const handleToggleHideServer = async () => {
+        if (!currentCafe) return;
+        await updateCafe({ is_server_hidden: !currentCafe.is_server_hidden });
+    };
+
+    const handlePlatformDelete = async () => {
+        if (!cafeToDelete) return;
+        const result = await platformDeleteCafe(cafeToDelete.id);
+        if (!result.success) setActionError(result.message);
+        setCafeToDelete(null);
+    };
+
+    const handlePlatformVisibilityToggle = async (cafe: Cafe) => {
+        const result = await platformUpdateCafeVisibility(cafe.id, !cafe.is_server_hidden);
+        if (!result.success) setActionError(result.message);
+    };
+
+    return (
+        <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-12">
+            <h2 className="text-3xl lg:text-4xl font-bold font-display text-center flex items-center justify-center gap-4">
+                <Crown size={36} className="icon-glow" style={{color: 'var(--color-secondary)'}} />
+                Administração da Plataforma
+            </h2>
+            
+            {actionError && (
+                <div className="bg-red-900/50 text-red-300 p-4 rounded-xl text-sm flex items-start gap-2">
+                    <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+                    <div>
+                        <strong className="font-bold">Ocorreu um Erro</strong>
+                        <p>{actionError}</p>
+                    </div>
+                </div>
+            )}
+            
+            {/* Cafe Management Section */}
+            <section>
+                <h3 className="text-2xl font-bold font-display mb-4 flex items-center gap-3"><Server /> Gestão de Cafés</h3>
+                <div className="glass-card p-4 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead className="bg-black/20">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Nome do Café</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Visibilidade</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
+                                {availableCafes.filter(c => c.id !== currentCafe?.id).map(cafe => (
+                                    <tr key={cafe.id}>
+                                        <td className="px-4 py-3 whitespace-nowrap font-medium">{cafe.name}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <button onClick={() => handlePlatformVisibilityToggle(cafe)} className="flex items-center gap-2 text-sm">
+                                                {cafe.is_server_hidden ? <><EyeOff size={16} className="text-stone-400" /> Oculto</> : <><Eye size={16} className="text-green-400" /> Público</>}
+                                            </button>
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <button onClick={() => setCafeToDelete(cafe)} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 text-sm font-semibold"><Trash2 size={16}/> Apagar</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+             {/* Invitation Code Section */}
+            <section>
+                <h3 className="text-2xl font-bold font-display mb-4 flex items-center gap-3"><Ticket /> Códigos de Convite</h3>
+                <div className="glass-card p-4">
+                    {codesError && (
+                        <div className="bg-red-900/50 text-red-300 p-3 rounded-xl text-sm mb-4 flex items-start gap-2">
+                            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+                            <div><strong className="font-bold">Ocorreu um Erro:</strong> <p>{codesError}</p></div>
+                        </div>
+                    )}
+                    <p style={{ color: 'var(--color-text-secondary)' }} className="mb-4 text-sm">Gere códigos de convite para permitir que novos cafés sejam criados. Cada código é válido por 15 minutos.</p>
+                    <button onClick={handleGenerateCode} disabled={isGenerating} className="w-full premium-gradient-button py-2.5 flex items-center justify-center gap-2 text-base mb-4">
+                        {isGenerating ? <Loader2 className="animate-spin"/> : <PlusCircle />}
+                        {isGenerating ? 'A gerar...' : 'Gerar Novo Código'}
+                    </button>
+                    <div className="max-h-60 overflow-y-auto pr-2 -mr-2 space-y-2">
+                         {isLoadingCodes ? <Loader2 className="animate-spin text-amber-300 mx-auto my-8" /> : 
+                            activeCodes.length === 0 ? <p className="text-center py-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum código ativo.</p> :
+                            activeCodes.map(code => (
+                                <div key={code.code} className="bg-black/20 p-2 rounded-lg flex items-center justify-between gap-4 text-sm">
+                                    <span className="font-mono tracking-wider">{code.code.replace(/(.{5})/g, '$1 ').trim()}</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5"><Clock size={14} /><Countdown createdAt={code.created_at} /></div>
+                                        <button onClick={() => handleCopyCode(code.code)} className="secondary-button font-semibold py-1 px-2 flex items-center gap-1 text-xs">
+                                            {copiedCode === code.code ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                                            {copiedCode === code.code ? 'Copiado' : 'Copiar'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                         }
+                    </div>
+                </div>
+            </section>
+            
+            {/* Feedback Section */}
+            <section>
+                 <h3 className="text-2xl font-bold font-display mb-4 flex items-center gap-3"><MessageSquare /> Feedback de Utilizadores</h3>
+                 <div className="glass-card p-4">
+                    <FeedbackManagement />
+                 </div>
+            </section>
+
+            {/* Danger Zone Section */}
+            <section className="pt-8 border-t-2 border-red-500/50">
+                <h3 className="text-2xl font-bold text-red-300 font-display">Zona de Perigo (Servidor ADM)</h3>
+                <div className="bg-red-900/20 p-6 rounded-2xl mt-4 border border-red-500/30 space-y-6">
+                    <div>
+                        <h4 className="text-lg font-semibold">Visibilidade do Servidor de Administração</h4>
+                        <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Oculte este servidor da lista pública. Apenas poderá acedê-lo através de um link direto ou se já tiver entrado como gerente neste dispositivo.</p>
+                        <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
+                            <label htmlFor="hide-server-toggle" className="font-medium pr-4 cursor-pointer">Ocultar servidor ADM da lista pública</label>
+                            <button
+                                id="hide-server-toggle"
+                                role="switch"
+                                aria-checked={!!currentCafe?.is_server_hidden}
+                                onClick={handleToggleHideServer}
+                                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-background)] ${currentCafe?.is_server_hidden ? 'bg-red-600' : 'bg-stone-600'}`}
+                                style={{'--tw-ring-color': 'var(--color-secondary)'} as React.CSSProperties}
+                            >
+                                <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${currentCafe?.is_server_hidden ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="pt-6 border-t" style={{borderColor: 'var(--color-glass-border)'}}>
+                         <h4 className="text-lg font-semibold">Apagar Servidor de Administração</h4>
+                        <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Atenção: Esta ação é permanente e irá apagar o servidor principal da plataforma. Isto irá impedir a criação de novos cafés.</p>
+                        <button onClick={() => setIsDeleteServerModalOpen(true)} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors">
+                            <Trash2 /> Apagar Servidor ADM Permanentemente
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {currentCafe && <DeleteServerConfirmationModal isOpen={isDeleteServerModalOpen} cafe={currentCafe} onClose={() => setIsDeleteServerModalOpen(false)} onConfirm={handleConfirmServerDelete} />}
+            
+            <PlatformDeleteCafeConfirmationModal 
+                isOpen={!!cafeToDelete} 
+                cafe={cafeToDelete}
+                onClose={() => setCafeToDelete(null)} 
+                onConfirm={handlePlatformDelete} 
+            />
+        </div>
+    );
+});
+
+
 const AdminDashboard: React.FC = () => {
-    const { theme } = useData();
+    const { isAdmCafe } = useData();
     const [activeTab, setActiveTab] = useState('analytics');
+
+    if (isAdmCafe) {
+        return <PlatformAdminPanel />;
+    }
 
     const tabs = [
         { id: 'analytics', label: 'Estatísticas', icon: TrendingUp, component: <AnalyticsDashboard /> },

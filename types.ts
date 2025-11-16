@@ -104,6 +104,29 @@ export interface ThemeSettings {
   hideManagerLogin: boolean;
 }
 
+export interface CreationCode {
+  code: string;
+  created_at: string;
+  is_used: boolean;
+}
+
+export interface Feedback {
+  id: string;
+  created_at: string;
+  content: string;
+  rating: number | null;
+  user_id: string | null;
+  user_name: string | null;
+  cafe_id: string | null;
+  cafe_name: string | null;
+  context_url: string | null;
+  is_resolved: boolean;
+}
+
+export type TablePresence = {
+  [tableId: string]: { user_id: string; name: string }[];
+};
+
 // O tipo CafeData foi removido pois a estrutura de dados aninhada não é mais necessária com o Supabase.
 // Os dados serão obtidos de tabelas individuais.
 
@@ -120,6 +143,9 @@ export interface DataContextType {
   availableCafes: Cafe[];
   theme: ThemeSettings;
   isAppLoading: boolean;
+  isAdmCafe: boolean;
+  feedbackSubmissions: Feedback[];
+  tablePresence: TablePresence;
   findUserByPin: (pin: string) => Staff | null;
   setCurrentUser: (user: Staff, cafeIdForFlag?: string) => void;
   logout: () => void;
@@ -143,7 +169,7 @@ export interface DataContextType {
   deleteLastTable: () => void;
   updateCategory: (oldName: string, newName: string) => void;
   selectCafe: (cafeId: string) => void;
-  createCafe: (name: string, adminPin: string, managerName: string) => Promise<boolean>;
+  createCafe: (name: string, adminPin: string, managerName: string, entryCode: string) => Promise<{ success: boolean; message: string; }>;
   deleteCafe: (cafeId: string, adminPin: string) => Promise<boolean>;
   updateTheme: (theme: Partial<ThemeSettings>) => void;
   updateCafe: (cafe: Partial<Omit<Cafe, 'id'>>) => void;
@@ -152,4 +178,12 @@ export interface DataContextType {
   findAdminByPhone: (phoneNumber: string) => Staff | null;
   resetPinForUser: (userId: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   loginAdminByNamePinAndCafe: (cafeName: string, managerName: string, pin: string) => Promise<{ success: boolean; message: string; }>;
+  generateCreationCode: () => Promise<{ error: string | null }>;
+  getActiveCreationCodes: () => Promise<{ data: CreationCode[] | null; error: string | null }>;
+  platformDeleteCafe: (cafeId: string) => Promise<{ success: boolean; message: string; }>;
+  platformUpdateCafeVisibility: (cafeId: string, isHidden: boolean) => Promise<{ success: boolean; message: string; }>;
+  submitFeedback: (content: string, rating: number | null) => Promise<{ success: boolean; message: string; }>;
+  toggleFeedbackResolved: (id: string, isResolved: boolean) => Promise<{ success: boolean; message: string; }>;
+  trackTablePresence: (tableId: string) => void;
+  untrackTablePresence: () => void;
 }

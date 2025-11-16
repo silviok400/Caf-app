@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Coffee, ChefHat, Shield, LogOut } from 'lucide-react';
+import { Coffee, ChefHat, Shield, LogOut, Crown } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { user, fullLogout, currentCafe, theme } = useData();
+  const { user, fullLogout, currentCafe, theme, isAdmCafe } = useData();
   const navigate = useNavigate();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
@@ -33,14 +33,25 @@ const Header: React.FC = () => {
       <header className="fixed top-0 left-0 right-0 z-40 p-2 sm:p-4">
         <div className="glass-card flex justify-between items-center h-16 sm:h-20 px-4 sm:px-6 max-w-7xl mx-auto">
             <div className="flex items-center gap-3 sm:gap-4">
-              {theme.logoUrl ? (
-                <img src={theme.logoUrl} alt={`${currentCafe?.name || 'Café'} logo`} className="h-10 sm:h-14 w-auto max-w-[120px] sm:max-w-[200px] object-contain" />
+              {isAdmCafe ? (
+                  <>
+                      <Crown className="h-8 w-8 sm:h-10 sm:w-10 icon-glow" style={{ color: 'var(--color-secondary)' }} />
+                      <div>
+                          <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight">Plataforma ADM</h1>
+                      </div>
+                  </>
               ) : (
-                <Coffee className="h-8 w-8 sm:h-10 sm:w-10 icon-glow" style={{ color: 'var(--color-secondary)' }} />
+                  <>
+                      {theme.logoUrl ? (
+                      <img src={theme.logoUrl} alt={`${currentCafe?.name || 'Café'} logo`} className="h-10 sm:h-14 w-auto max-w-[120px] sm:max-w-[200px] object-contain" />
+                      ) : (
+                      <Coffee className="h-8 w-8 sm:h-10 sm:w-10 icon-glow" style={{ color: 'var(--color-secondary)' }} />
+                      )}
+                      <div>
+                          <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight">{currentCafe?.name || 'Café Control'}</h1>
+                      </div>
+                  </>
               )}
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold font-display leading-tight">{currentCafe?.name || 'Café Control'}</h1>
-              </div>
             </div>
             <nav className="hidden md:flex items-center gap-2 sm:gap-4">
               {user?.role === 'waiter' && (
@@ -48,7 +59,7 @@ const Header: React.FC = () => {
                   <Coffee size={18} /> <span className="hidden lg:inline">Mesas</span>
                 </NavLink>
               )}
-              {(user?.role === 'kitchen' || user?.role === 'admin') && (
+              {(user?.role === 'kitchen' || (user?.role === 'admin' && !isAdmCafe)) && (
                 <NavLink to="/kitchen" className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses}`}>
                   <ChefHat size={18} /> <span className="hidden lg:inline">Cozinha</span>
                 </NavLink>
@@ -73,7 +84,6 @@ const Header: React.FC = () => {
         </div>
       </header>
       <div className="h-24 sm:h-28" /> {/* Spacer to push content below fixed header */}
-
 
       {isLogoutModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">

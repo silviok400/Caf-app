@@ -11,11 +11,12 @@ const timeSince = (date: Date) => {
     return `${Math.floor(seconds)} seg`;
 };
 
-const OrderCard: React.FC<{ order: Order }> = memo(({ order }) => {
+const OrderCard: React.FC<{ order: Order; isNew: boolean; onAnimationEnd: (orderId: string) => void; }> = memo(({ order, isNew, onAnimationEnd }) => {
   const { updateOrderStatus, staff, user, tables, theme } = useData();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const waiter = staff.find(s => s.id === order.staff_id);
   const table = tables.find(t => t.id === order.table_id);
+  const cardRef = useRef<HTMLDivElement>(null);
   
   const orderTotal = useMemo(() => {
     return order.items.reduce((total, item) => total + (item.productPrice * item.quantity), 0);
@@ -23,9 +24,25 @@ const OrderCard: React.FC<{ order: Order }> = memo(({ order }) => {
 
   const statusKey = (Object.keys(OrderStatus) as Array<keyof typeof OrderStatus>).find(key => OrderStatus[key] === order.status)?.toLowerCase() || 'cancelled';
   const statusColor = theme.statusColors[statusKey as keyof typeof theme.statusColors] || theme.statusColors.cancelled;
+  
+  useEffect(() => {
+    const handleAnimationEnd = () => {
+        onAnimationEnd(order.id);
+    };
+    const element = cardRef.current;
+    if (isNew && element) {
+        element.addEventListener('animationend', handleAnimationEnd);
+    }
+    return () => {
+        if (element) {
+            element.removeEventListener('animationend', handleAnimationEnd);
+        }
+    };
+  }, [isNew, order.id, onAnimationEnd]);
+
 
   return (
-    <div className="glass-card !bg-black/20 rounded-2xl shadow-md p-4 flex flex-col justify-between w-full border-t-4" style={{ borderColor: statusColor }}>
+    <div ref={cardRef} className={`glass-card !bg-black/20 rounded-2xl shadow-md p-4 flex flex-col justify-between w-full border-t-4 ${isNew ? 'animate-flash' : ''}`} style={{ borderColor: statusColor }}>
       <div>
         <div className="flex justify-between items-start border-b pb-2 mb-3" style={{borderColor: 'var(--color-glass-border)'}}>
             <div>
@@ -157,6 +174,7 @@ const KitchenDashboard: React.FC = () => {
   const { orders, staff, tables } = useData();
   const prevOrdersRef = useRef<Order[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
 
   // Solicitar permissão de notificação na montagem do componente
   useEffect(() => {
@@ -178,6 +196,12 @@ const KitchenDashboard: React.FC = () => {
     if (newIncomingOrders.length > 0) {
       new Audio("https://upload.wikimedia.org/wikipedia/commons/c/c8/Blop.mp3").play().catch(e => console.error("Error playing audio:", e));
       
+      setNewOrderIds(prev => {
+        const newSet = new Set(prev);
+        newIncomingOrders.forEach(order => newSet.add(order.id));
+        return newSet;
+      });
+
       if ('Notification' in window && Notification.permission === 'granted') {
         const latestOrder = newIncomingOrders[0];
         const table = tables.find(t => t.id === latestOrder.table_id);
@@ -191,6 +215,14 @@ const KitchenDashboard: React.FC = () => {
     prevOrdersRef.current = orders;
     
   }, [orders, tables]);
+  
+  const handleAnimationEnd = (orderId: string) => {
+    setNewOrderIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+    });
+  };
 
 
   const newOrders = useMemo(() => {
@@ -240,7 +272,7 @@ const KitchenDashboard: React.FC = () => {
               <h3 className="font-bold text-lg mb-4 flex-shrink-0">Novos ({newOrders.length})</h3>
               <div className="flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
                 {newOrders.length > 0 ? (
-                  newOrders.map(order => <OrderCard key={order.id} order={order} />)
+                  newOrders.map(order => <OrderCard key={order.id} order={order} isNew={newOrderIds.has(order.id)} onAnimationEnd={handleAnimationEnd}/>)
                 ) : (
                   <p className="text-center pt-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum pedido novo.</p>
                 )}
@@ -252,7 +284,7 @@ const KitchenDashboard: React.FC = () => {
               <h3 className="font-bold text-lg mb-4 flex-shrink-0">Em Preparo ({preparingOrders.length})</h3>
               <div className="flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
                 {preparingOrders.length > 0 ? (
-                  preparingOrders.map(order => <OrderCard key={order.id} order={order} />)
+                  preparingOrders.map(order => <OrderCard key={order.id} order={order} isNew={false} onAnimationEnd={() => {}} />)
                 ) : (
                   <p className="text-center pt-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum pedido em preparo.</p>
                 )}
@@ -264,7 +296,7 @@ const KitchenDashboard: React.FC = () => {
               <h3 className="font-bold text-lg mb-4 flex-shrink-0">Prontos ({readyOrders.length})</h3>
               <div className="flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
                 {readyOrders.length > 0 ? (
-                  readyOrders.map(order => <OrderCard key={order.id} order={order} />)
+                  readyOrders.map(order => <OrderCard key={order.id} order={order} isNew={false} onAnimationEnd={() => {}} />)
                 ) : (
                   <p className="text-center pt-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum pedido pronto.</p>
                 )}

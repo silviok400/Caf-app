@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coffee, User, Shield, ArrowLeft, QrCode, X, AlertTriangle } from 'lucide-react';
+import { Coffee, User, Shield, ArrowLeft, QrCode, X, AlertTriangle, Crown } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { Cafe } from '../types';
 import QRCode from 'qrcode';
@@ -48,7 +48,7 @@ const QRCodeModal: React.FC<{
 
 const RoleSelectionPage: React.FC = () => {
   const navigate = useNavigate();
-  const { fullLogout, currentCafe, theme } = useData();
+  const { fullLogout, currentCafe, theme, isAdmCafe } = useData();
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isAdminDevice, setIsAdminDevice] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -88,31 +88,47 @@ const RoleSelectionPage: React.FC = () => {
 
       <div className="w-full max-w-md mx-auto glass-card p-6 sm:p-8 text-center">
         <div className="flex justify-center mb-6 h-16 sm:h-20">
-          {theme.logoUrl ? (
+          {isAdmCafe ? (
+              <Crown className="h-16 w-16 icon-glow" style={{ color: 'var(--color-secondary)' }} />
+          ) : theme.logoUrl ? (
             <img src={theme.logoUrl} alt={`${currentCafe?.name || ''} logo`} className="h-full w-auto max-w-[200px] object-contain" />
           ) : (
             <Coffee className="h-16 w-16 icon-glow" style={{ color: 'var(--color-secondary)' }} />
           )}
         </div>
         <h2 className="text-3xl sm:text-4xl font-bold font-display mb-2">{currentCafe?.name}</h2>
-        <p className="mb-8 text-base sm:text-lg" style={{ color: 'var(--color-text-secondary)' }}>Selecione o seu tipo de acesso.</p>
+        <p className="mb-8 text-base sm:text-lg" style={{ color: 'var(--color-text-secondary)' }}>
+          {isAdmCafe ? 'Acesso à administração da plataforma.' : 'Selecione o seu tipo de acesso.'}
+        </p>
 
         <div className="space-y-4">
-          <button
-            onClick={() => navigate('/login', { state: { role: 'staff' } })}
-            className="w-full secondary-button font-bold py-4 text-lg flex items-center justify-center gap-3"
-          >
-            <User size={24} />
-            Funcionário
-          </button>
-          {showManagerButton && (
-            <button
+          {isAdmCafe ? (
+              <button
                 onClick={() => navigate('/login', { state: { role: 'admin' } })}
                 className="w-full premium-gradient-button py-4 text-lg flex items-center justify-center gap-3"
-            >
+              >
                 <Shield size={24} />
-                Gerente
-            </button>
+                Administrador da Plataforma
+              </button>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate('/login', { state: { role: 'staff' } })}
+                className="w-full secondary-button font-bold py-4 text-lg flex items-center justify-center gap-3"
+              >
+                <User size={24} />
+                Funcionário
+              </button>
+              {showManagerButton && (
+                <button
+                    onClick={() => navigate('/login', { state: { role: 'admin' } })}
+                    className="w-full premium-gradient-button py-4 text-lg flex items-center justify-center gap-3"
+                >
+                    <Shield size={24} />
+                    Gerente
+                </button>
+              )}
+            </>
           )}
         </div>
         

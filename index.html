@@ -218,6 +218,46 @@
       ::-webkit-scrollbar-thumb:hover {
         background-color: color-mix(in srgb, var(--color-secondary) 85%, white);
       }
+      
+      /* Realtime Presence Indicator */
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+      }
+      .viewer-indicator {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        animation: pulse 2.5s infinite ease-in-out;
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      /* Realtime Flash Animation */
+      @keyframes flash-new-item {
+        0% {
+          border-color: var(--color-secondary);
+          box-shadow: var(--shadow-light), var(--shadow-inner), 0 0 20px var(--color-secondary);
+        }
+        100% {
+          border-color: var(--color-glass-border);
+          box-shadow: var(--shadow-light), var(--shadow-inner), 0 0 0 transparent;
+        }
+      }
+      .animate-flash {
+        animation: flash-new-item 1.5s ease-out;
+      }
 
     </style>
   <script type="importmap">

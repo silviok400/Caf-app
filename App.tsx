@@ -11,6 +11,7 @@ import LoginConfirmationPage from './pages/LoginConfirmationPage';
 import ServerSelectionPage from './pages/ServerSelectionPage';
 import JoinServerPage from './pages/JoinServerPage';
 import CustomerMenuPage from './pages/CustomerMenuPage';
+import FeedbackButton from './components/FeedbackButton';
 import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -78,6 +79,7 @@ const Main: React.FC = () => {
           </Routes>
         </div>
       </main>
+      {currentCafe && requiresCafeContext && <FeedbackButton />}
     </div>
   );
 };
