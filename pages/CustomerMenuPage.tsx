@@ -322,43 +322,9 @@ const CustomerMenuPage: React.FC = () => {
     const [noteText, setNoteText] = useState('');
 
     useEffect(() => {
-        const root = document.documentElement;
-        const body = document.body;
-
-        const originalStyles: { [key: string]: string } = {};
-        const cssVariables = [
-            '--color-background', '--color-text-primary', '--color-text-secondary',
-            '--color-glass-bg', '--color-glass-border', '--color-glass-border-highlight',
-            '--color-primary', '--color-secondary', '--gradient-gold'
-        ];
-
-        cssVariables.forEach(v => {
-            originalStyles[v] = root.style.getPropertyValue(v);
-        });
-        originalStyles['body-backgroundImage'] = body.style.backgroundImage;
-
-        // Apply light theme
-        body.classList.add('theme-light');
-        root.style.setProperty('--color-background', '#f8f5f2');
-        root.style.setProperty('--color-text-primary', '#4a3f35');
-        root.style.setProperty('--color-text-secondary', '#776c62');
-        root.style.setProperty('--color-glass-bg', 'rgba(255, 255, 255, 0.65)');
-        root.style.setProperty('--color-glass-border', 'rgba(74, 63, 53, 0.1)');
-        root.style.setProperty('--color-glass-border-highlight', 'rgba(125, 91, 65, 0.4)');
-        root.style.setProperty('--color-primary', '#7d5b41');
-        root.style.setProperty('--color-secondary', '#c5a371');
-        root.style.setProperty('--gradient-gold', 'linear-gradient(145deg, #e6c793, #c5a371, #a48454)');
-        body.style.backgroundImage = 'none';
-
+        document.body.classList.add('theme-light');
         return () => {
-            body.classList.remove('theme-light');
-            for (const key in originalStyles) {
-                if (key === 'body-backgroundImage') {
-                    body.style.backgroundImage = originalStyles[key];
-                } else {
-                    root.style.setProperty(key, originalStyles[key]);
-                }
-            }
+            document.body.classList.remove('theme-light');
         };
     }, []);
 
