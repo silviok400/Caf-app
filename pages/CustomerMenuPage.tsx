@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Product, OrderItem, Order, OrderStatus } from '../types';
-import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp, Star } from 'lucide-react';
+import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp, Star, Ban } from 'lucide-react';
 
 
 const ErrorDisplay: React.FC<{ message: string }> = memo(({ message }) => {
@@ -157,8 +157,11 @@ const OrderStatusTracker: React.FC<{
     onPlaceNewOrder: () => void;
     isFirstOrder: boolean;
 }> = memo(({ orderId, onPlaceNewOrder, isFirstOrder }) => {
-    const { orders, theme } = useData();
+    const { orders, customerCancelOrder } = useData();
     const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [cancelStatus, setCancelStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+    const [cancelError, setCancelError] = useState('');
     
     useEffect(() => {
         if (isFirstOrder) {
@@ -168,6 +171,25 @@ const OrderStatusTracker: React.FC<{
     }, [isFirstOrder]);
     
     const trackedOrder = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId]);
+
+    const handleCancelOrder = async () => {
+        setCancelStatus('loading');
+        setCancelError('');
+        const result = await customerCancelOrder(orderId);
+        if (!result.success) {
+            setCancelError(result.message);
+            setCancelStatus('error');
+             // Hide the modal after showing the error for a bit
+            setTimeout(() => {
+                setIsCancelModalOpen(false);
+                setCancelStatus('idle');
+            }, 3000);
+        } else {
+            // Success! The UI will update automatically via realtime.
+            setIsCancelModalOpen(false);
+            setCancelStatus('idle');
+        }
+    };
 
     if (!trackedOrder) {
         return <LoadingDisplay message="A aguardar confirmação do pedido..." />;
@@ -195,13 +217,39 @@ const OrderStatusTracker: React.FC<{
     return (
         <>
         {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
+        {isCancelModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="glass-card w-full max-w-sm p-6 text-center">
+                    <h3 className="text-2xl font-bold font-display mb-2">Cancelar Pedido</h3>
+                    <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar o seu pedido? Esta ação não pode ser desfeita.</p>
+                    {cancelStatus === 'error' && <p className="text-red-400 text-sm mb-4">{cancelError}</p>}
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={() => setIsCancelModalOpen(false)}
+                            disabled={cancelStatus === 'loading'}
+                            className="w-full secondary-button font-bold py-3"
+                        >
+                            Anular
+                        </button>
+                        <button
+                            onClick={handleCancelOrder}
+                            disabled={cancelStatus === 'loading'}
+                            className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700 flex items-center justify-center"
+                        >
+                            {cancelStatus === 'loading' ? <Loader2 className="animate-spin"/> : 'Confirmar'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="flex flex-col items-center justify-center min-h-screen text-center p-4 animate-fade-in">
             <div className="glass-card p-6 sm:p-8 max-w-2xl w-full">
                 {status === OrderStatus.CANCELLED ? (
                     <>
-                         <AlertTriangle size={56} className="mx-auto text-red-400 mb-4" />
+                         <Ban size={56} className="mx-auto text-red-400 mb-4" />
                          <h2 className="text-3xl font-bold font-display">Pedido Cancelado</h2>
-                         <p style={{color: 'var(--color-text-secondary)'}} className="mt-2">O seu pedido foi cancelado. Por favor, fale com um funcionário se tiver alguma questão.</p>
+                         <p style={{color: 'var(--color-text-secondary)'}} className="mt-2">O seu pedido foi cancelado com sucesso.</p>
                     </>
                 ) : (
                     <>
@@ -241,13 +289,22 @@ const OrderStatusTracker: React.FC<{
                         </div>
                     </>
                 )}
-
-                <button 
-                    onClick={onPlaceNewOrder}
-                    className="mt-8 w-full premium-gradient-button font-bold py-3 px-6 rounded-lg"
-                >
-                    Fazer Novo Pedido
-                </button>
+                <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                    {status === OrderStatus.NEW && (
+                        <button
+                            onClick={() => setIsCancelModalOpen(true)}
+                            className="w-full secondary-button !bg-red-900/40 !border-red-500/50 hover:!bg-red-900/60 text-red-300 font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2"
+                        >
+                            <Ban size={20}/> Cancelar Pedido
+                        </button>
+                    )}
+                    <button 
+                        onClick={onPlaceNewOrder}
+                        className="w-full premium-gradient-button font-bold py-3 px-6 rounded-lg"
+                    >
+                        Fazer Novo Pedido
+                    </button>
+                </div>
             </div>
         </div>
         </>

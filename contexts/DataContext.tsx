@@ -244,20 +244,19 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   // This prevents unnecessary data reloads and the "refresh" effect the user was seeing.
   const loadDataForCafe = useCallback(async (cafeId: string) => {
       setIsAppLoading(true);
+      
+      const feedbackQuery = cafeId === ADM_CAFE_ID
+        ? supabase.from('feedback').select('*').order('created_at', { ascending: false })
+        : supabase.from('feedback').select('*').eq('cafe_id', cafeId).order('created_at', { ascending: false });
+
       const dataPromises = [
           supabase.from('staff').select('*').eq('cafe_id', cafeId),
           supabase.from('products').select('*').eq('cafe_id', cafeId),
           supabase.from('tables').select('*').eq('cafe_id', cafeId),
           supabase.from('orders').select('*').eq('cafe_id', cafeId),
           supabase.from('theme_settings').select('*').eq('cafe_id', cafeId).maybeSingle(),
+          feedbackQuery,
       ];
-
-      // If it's the admin cafe, also fetch all feedback
-      if (cafeId === ADM_CAFE_ID) {
-          dataPromises.push(supabase.from('feedback').select('*').order('created_at', { ascending: false }));
-      } else {
-          setFeedbackSubmissions([]); // Clear feedback if not admin
-      }
       
       const [
           staffRes,
@@ -283,6 +282,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       
       if (feedbackRes && feedbackRes.data) {
           setFeedbackSubmissions(feedbackRes.data as Feedback[]);
+      } else {
+          setFeedbackSubmissions([]);
       }
 
       setIsAppLoading(false);
@@ -434,9 +435,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       ).subscribe();
     channels.push(themeChannel);
 
-    if (currentCafeId === ADM_CAFE_ID) {
-      const feedbackChannel = supabase.channel('rt-feedback-all')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback' },
+    const feedbackChannelFilter = currentCafeId === ADM_CAFE_ID ? undefined : `cafe_id=eq.${currentCafeId}`;
+    const feedbackChannel = supabase.channel(`rt-feedback-${currentCafeId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback', filter: feedbackChannelFilter },
           (payload) => {
             console.log('Realtime Feedback Change:', payload);
             if (payload.eventType === 'INSERT') {
@@ -448,8 +449,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             }
           }
         ).subscribe();
-      channels.push(feedbackChannel);
-    }
+    channels.push(feedbackChannel);
 
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));
@@ -707,6 +707,24 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       .eq('id', orderId);
     if (error) console.error("Error updating order status:", error.message);
   }, []);
+
+  const customerCancelOrder = useCallback(async (orderId: string): Promise<{ success: boolean; message: string; }> => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+        return { success: false, message: "Pedido não encontrado." };
+    }
+    if (order.status !== OrderStatus.NEW) {
+        return { success: false, message: "O pedido já está em preparo e não pode ser cancelado." };
+    }
+    const { error } = await supabase.from('orders')
+        .update({ status: OrderStatus.CANCELLED, updated_at: new Date().toISOString() })
+        .eq('id', orderId);
+    if (error) {
+        console.error("Error cancelling order:", error.message);
+        return { success: false, message: "Falha ao cancelar o pedido." };
+    }
+    return { success: true, message: "Pedido cancelado com sucesso." };
+  }, [orders]);
 
   const getProductById = useCallback((id: string) => products.find(p => p.id === id), [products]);
   const getOrdersForTable = useCallback((tableId: string) => orders.filter(o => o.table_id === tableId), [orders]);
@@ -1160,6 +1178,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     platformUpdateCafeVisibility,
     submitFeedback,
     toggleFeedbackResolved,
+    customerCancelOrder,
     trackTablePresence,
     untrackTablePresence,
   }), [
@@ -1172,7 +1191,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     updateTheme, updateCafe, updateCurrentUserPin, updateCurrentUserPhone,
     findAdminByPhone, resetPinForUser, loginAdminByNamePinAndCafe,
     generateCreationCode, getActiveCreationCodes, platformDeleteCafe, platformUpdateCafeVisibility,
-    submitFeedback, toggleFeedbackResolved, trackTablePresence, untrackTablePresence
+    submitFeedback, toggleFeedbackResolved, customerCancelOrder, trackTablePresence, untrackTablePresence
   ]);
 
   return (

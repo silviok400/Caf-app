@@ -187,6 +187,7 @@ export interface DataContextType {
   platformUpdateCafeVisibility: (cafeId: string, isHidden: boolean) => Promise<{ success: boolean; message: string; }>;
   submitFeedback: (content: string, rating: number | null) => Promise<{ success: boolean; message: string; }>;
   toggleFeedbackResolved: (id: string, isResolved: boolean) => Promise<{ success: boolean; message: string; }>;
+  customerCancelOrder: (orderId: string) => Promise<{ success: boolean; message: string; }>;
   trackTablePresence: (tableId: string) => void;
   untrackTablePresence: () => void;
 }
