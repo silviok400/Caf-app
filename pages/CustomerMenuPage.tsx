@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Product, OrderItem } from '../types';
-import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle } from 'lucide-react';
+import { Product, OrderItem, Order, OrderStatus } from '../types';
+import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp } from 'lucide-react';
 
 
 const ErrorDisplay: React.FC<{ message: string }> = memo(({ message }) => {
@@ -33,6 +33,113 @@ const LoadingDisplay: React.FC<{ message: string }> = memo(({ message }) => {
     );
 });
 
+const StatusStep: React.FC<{ icon: React.ElementType; label: string; isActive: boolean; isCompleted: boolean; }> = ({ icon: Icon, label, isActive, isCompleted }) => {
+    return (
+        <div className="flex flex-col items-center text-center">
+            <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-2 transition-all duration-500
+                ${isCompleted ? 'bg-green-500 border-green-400' : ''}
+                ${isActive ? 'bg-amber-500 border-amber-300 animate-pulse' : ''}
+                ${!isActive && !isCompleted ? 'bg-stone-700 border-stone-600' : ''}
+            `}>
+                <Icon size={24} sm={32} className="text-white" />
+            </div>
+            <p className={`mt-2 text-xs sm:text-sm font-semibold transition-colors
+                ${isActive || isCompleted ? 'text-white' : 'text-stone-400'}
+            `}>{label}</p>
+        </div>
+    );
+};
+
+const OrderStatusTracker: React.FC<{ 
+    orderId: string; 
+    onPlaceNewOrder: () => void;
+}> = memo(({ orderId, onPlaceNewOrder }) => {
+    const { orders, theme } = useData();
+    const trackedOrder = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId]);
+
+    if (!trackedOrder) {
+        return <LoadingDisplay message="A aguardar confirmação do pedido..." />;
+    }
+
+    const { status, items } = trackedOrder;
+
+    const statusMap = {
+        [OrderStatus.NEW]: 1,
+        [OrderStatus.PREPARING]: 2,
+        [OrderStatus.READY]: 3,
+        [OrderStatus.SERVED]: 4,
+        [OrderStatus.PAID]: 4,
+        [OrderStatus.CANCELLED]: 0
+    };
+    const currentStep = statusMap[status] || 0;
+    
+    const steps = [
+        { icon: Receipt, label: 'Recebido' },
+        { icon: ChefHat, label: 'Em Preparo' },
+        { icon: Bell, label: 'Pronto' },
+        { icon: ThumbsUp, label: 'Entregue' },
+    ];
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4 animate-fade-in">
+            <div className="glass-card p-6 sm:p-8 max-w-2xl w-full">
+                {status === OrderStatus.CANCELLED ? (
+                    <>
+                         <AlertTriangle size={56} className="mx-auto text-red-400 mb-4" />
+                         <h2 className="text-3xl font-bold font-display">Pedido Cancelado</h2>
+                         <p style={{color: 'var(--color-text-secondary)'}} className="mt-2">O seu pedido foi cancelado. Por favor, fale com um funcionário se tiver alguma questão.</p>
+                    </>
+                ) : (
+                    <>
+                        <h2 className="text-3xl font-bold font-display">O seu pedido está a caminho!</h2>
+                        <p style={{color: 'var(--color-text-secondary)'}} className="mt-2 mb-8">Acompanhe o progresso em tempo real abaixo.</p>
+                        
+                        <div className="relative flex justify-between items-center w-full max-w-lg mx-auto mb-10 px-2">
+                            <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-1 bg-stone-700" style={{ transform: 'translateY(-24px) sm:translateY(-32px)' }}></div>
+                            <div 
+                                className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-green-500 transition-all duration-1000"
+                                style={{ 
+                                    width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
+                                    transform: 'translateY(-24px) sm:translateY(-32px)'
+                                }}
+                            ></div>
+                            {steps.map((step, index) => (
+                                <StatusStep 
+                                    key={index} 
+                                    icon={step.icon} 
+                                    label={step.label}
+                                    isActive={currentStep === index + 1}
+                                    isCompleted={currentStep > index + 1}
+                                />
+                            ))}
+                        </div>
+
+                        <div className="text-left max-h-48 overflow-y-auto bg-black/20 p-3 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
+                            <h3 className="font-bold mb-2">O seu Pedido:</h3>
+                            <ul className="space-y-1">
+                                {items.map((item, index) => (
+                                    <li key={index} className="text-sm flex justify-between">
+                                        <span style={{color: 'var(--color-text-secondary)'}}>{item.quantity}x {item.productName}</span>
+                                        <span>€{(item.productPrice * item.quantity).toFixed(2)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </>
+                )}
+
+                <button 
+                    onClick={onPlaceNewOrder}
+                    className="mt-8 w-full premium-gradient-button font-bold py-3 px-6 rounded-lg"
+                >
+                    Fazer Novo Pedido
+                </button>
+            </div>
+        </div>
+    );
+});
+
+
 const CustomerMenuPage: React.FC = () => {
     const { cafeId, tableId } = useParams<{ cafeId: string, tableId: string }>();
     const { selectCafe, currentCafe, products, categories, theme, addOrder, tables, isAppLoading, availableCafes } = useData();
@@ -48,6 +155,7 @@ const CustomerMenuPage: React.FC = () => {
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [editingNote, setEditingNote] = useState<OrderItem | null>(null);
     const [orderState, setOrderState] = useState<'idle' | 'sending' | 'sent'>('idle');
+    const [sentOrderId, setSentOrderId] = useState<string | null>(null);
     const [fullscreenState, setFullscreenState] = useState<'idle' | 'requested' | 'active' | 'failed'>('idle');
     const [noteText, setNoteText] = useState('');
 
@@ -98,23 +206,6 @@ const CustomerMenuPage: React.FC = () => {
             selectCafe(cafeId);
         }
     }, [cafeId, currentCafe, selectCafe]);
-
-    useEffect(() => {
-        if (orderState === 'sent') {
-            const timer = setTimeout(() => {
-                if (isKioskMode) {
-                    // In Kiosk mode, just go back to the menu for the next order
-                    setOrderState('idle');
-                } else {
-                    // In normal mode, navigate back to the main selection screen
-                    navigate('/select-server');
-                }
-            }, 8000); // 8-second delay before auto-action
-
-            // Cleanup the timer if the component unmounts or state changes
-            return () => clearTimeout(timer);
-        }
-    }, [orderState, isKioskMode, navigate]);
 
     const validationResult = useMemo(() => {
         if (isAppLoading) {
@@ -183,14 +274,18 @@ const CustomerMenuPage: React.FC = () => {
         if (cart.length > 0 && tableId) {
             setOrderState('sending');
             try {
-                // Not awaiting this is intentional for fire-and-forget
-                addOrder(tableId, cart, true);
-                setOrderState('sent');
-                setCart([]);
-                setIsCartOpen(false);
+                const newOrder = await addOrder(tableId, cart, true);
+                if (newOrder) {
+                    setSentOrderId(newOrder.id);
+                    setOrderState('sent');
+                    setCart([]);
+                    setIsCartOpen(false);
+                } else {
+                    throw new Error("Order creation failed.");
+                }
             } catch (error) {
                 console.error("Failed to submit order:", error);
-                // Maybe show an error message to the user
+                alert("Ocorreu um erro ao enviar o seu pedido. Por favor, tente novamente.");
                 setOrderState('idle');
             }
         }
@@ -235,34 +330,15 @@ const CustomerMenuPage: React.FC = () => {
         );
     }
     
-    if (orderState === 'sent') {
+    if (orderState === 'sent' && sentOrderId) {
          return (
-            <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-                <div className="glass-card p-8 max-w-lg">
-                    <CheckCircle className="text-green-400 mx-auto" size={80} />
-                    <h2 className="text-3xl font-bold font-display mt-4">Pedido Enviado!</h2>
-                    <p className="text-stone-300 mt-2">O seu pedido foi enviado para a cozinha e será preparado em breve.</p>
-                    {!isKioskMode && (
-                        <p className="text-stone-400 mt-4 text-sm">Será redirecionado para a página inicial em alguns segundos...</p>
-                    )}
-                    <div className="mt-8 w-full max-w-sm space-y-4">
-                        <button 
-                            onClick={() => setOrderState('idle')} 
-                            className="w-full premium-gradient-button font-bold py-3 px-6 rounded-lg"
-                        >
-                            Fazer Novo Pedido
-                        </button>
-                        {!isKioskMode && (
-                            <button 
-                                onClick={() => navigate('/select-server')} 
-                                className="w-full secondary-button font-bold py-3 px-6 rounded-lg"
-                            >
-                                Voltar ao Início
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <OrderStatusTracker 
+                orderId={sentOrderId}
+                onPlaceNewOrder={() => {
+                    setOrderState('idle');
+                    setSentOrderId(null);
+                }}
+            />
         )
     }
 

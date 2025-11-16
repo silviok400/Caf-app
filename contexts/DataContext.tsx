@@ -620,8 +620,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_CAFE_ID);
   }, []);
 
-  const addOrder = useCallback(async (tableId: string, items: OrderItem[], isCustomer: boolean = false) => {
-    if ((!user && !isCustomer) || !currentCafeId) return;
+  const addOrder = useCallback(async (tableId: string, items: OrderItem[], isCustomer: boolean = false): Promise<Order | null> => {
+    if ((!user && !isCustomer) || !currentCafeId) return null;
 
     const staffId = user ? user.id : 'customer-order';
     const newOrder = {
@@ -632,10 +632,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     
-    const { error } = await supabase.from('orders').insert(newOrder);
-    if (error) console.error("Error adding order:", error.message);
+    const { data, error } = await supabase.from('orders').insert(newOrder).select().single();
+    if (error) {
+      console.error("Error adding order:", error.message);
+      return null;
+    }
     
-    if (!isCustomer) new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(e => console.error("Error playing audio:", e));
+    if (!isCustomer) {
+      new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(e => console.error("Error playing audio:", e));
+    }
+
+    return data ? { ...data, created_at: new Date(data.created_at), updated_at: new Date(data.updated_at) } as Order : null;
   }, [user, currentCafeId]);
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {

@@ -150,7 +150,7 @@ export interface DataContextType {
   setCurrentUser: (user: Staff, cafeIdForFlag?: string) => void;
   logout: () => void;
   fullLogout: () => void;
-  addOrder: (tableId: string, items: OrderItem[], isCustomer?: boolean) => void;
+  addOrder: (tableId: string, items: OrderItem[], isCustomer?: boolean) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   getProductById: (id: string) => Product | undefined;
   getOrdersForTable: (tableId: string) => Order[];

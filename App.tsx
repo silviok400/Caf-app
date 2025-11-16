@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { DataProvider, useData } from './contexts/DataContext';
 import LoginPage from './pages/LoginPage';
 import RoleSelectionPage from './pages/RoleSelectionPage';
@@ -12,6 +12,7 @@ import ServerSelectionPage from './pages/ServerSelectionPage';
 import JoinServerPage from './pages/JoinServerPage';
 import CustomerMenuPage from './pages/CustomerMenuPage';
 import FeedbackButton from './components/FeedbackButton';
+import Footer from './components/Footer';
 import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -33,6 +34,7 @@ const LoadingSpinner: React.FC = () => (
 
 const Main: React.FC = () => {
   const { user, currentCafe, isAppLoading, staff } = useData();
+  const location = useLocation();
 
   // Show spinner on initial app load OR when a cafe is selected but its data hasn't arrived yet.
   if (isAppLoading || (currentCafe && staff.length === 0)) {
@@ -79,6 +81,7 @@ const Main: React.FC = () => {
           </Routes>
         </div>
       </main>
+      {location.pathname === '/select-server' && <Footer />}
       {currentCafe && requiresCafeContext && <FeedbackButton />}
     </div>
   );
