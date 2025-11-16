@@ -321,6 +321,47 @@ const CustomerMenuPage: React.FC = () => {
     const [fullscreenState, setFullscreenState] = useState<'idle' | 'requested' | 'active' | 'failed'>('idle');
     const [noteText, setNoteText] = useState('');
 
+    useEffect(() => {
+        const root = document.documentElement;
+        const body = document.body;
+
+        const originalStyles: { [key: string]: string } = {};
+        const cssVariables = [
+            '--color-background', '--color-text-primary', '--color-text-secondary',
+            '--color-glass-bg', '--color-glass-border', '--color-glass-border-highlight',
+            '--color-primary', '--color-secondary', '--gradient-gold'
+        ];
+
+        cssVariables.forEach(v => {
+            originalStyles[v] = root.style.getPropertyValue(v);
+        });
+        originalStyles['body-backgroundImage'] = body.style.backgroundImage;
+
+        // Apply light theme
+        body.classList.add('theme-light');
+        root.style.setProperty('--color-background', '#f8f5f2');
+        root.style.setProperty('--color-text-primary', '#4a3f35');
+        root.style.setProperty('--color-text-secondary', '#776c62');
+        root.style.setProperty('--color-glass-bg', 'rgba(255, 255, 255, 0.65)');
+        root.style.setProperty('--color-glass-border', 'rgba(74, 63, 53, 0.1)');
+        root.style.setProperty('--color-glass-border-highlight', 'rgba(125, 91, 65, 0.4)');
+        root.style.setProperty('--color-primary', '#7d5b41');
+        root.style.setProperty('--color-secondary', '#c5a371');
+        root.style.setProperty('--gradient-gold', 'linear-gradient(145deg, #e6c793, #c5a371, #a48454)');
+        body.style.backgroundImage = 'none';
+
+        return () => {
+            body.classList.remove('theme-light');
+            for (const key in originalStyles) {
+                if (key === 'body-backgroundImage') {
+                    body.style.backgroundImage = originalStyles[key];
+                } else {
+                    root.style.setProperty(key, originalStyles[key]);
+                }
+            }
+        };
+    }, []);
+
     const enterFullscreen = async () => {
         try {
             await document.documentElement.requestFullscreen();
@@ -509,7 +550,7 @@ const CustomerMenuPage: React.FC = () => {
     return (
         <div ref={menuRef} className="min-h-screen w-full flex flex-col items-center p-2 sm:p-4 pb-28">
             <div className="w-full max-w-3xl flex-grow flex flex-col">
-                <header className="py-4 sticky top-0 bg-[var(--color-background)] z-20 w-full mb-4">
+                <header className="py-4 sticky top-0 bg-[color:var(--color-background)] z-20 w-full mb-4">
                     <div className="glass-card p-4">
                         <h1 className="text-3xl font-bold font-display text-center">{currentCafe?.name || 'Cardápio'}</h1>
                         <p className="text-center font-semibold" style={{color: 'var(--color-secondary)'}}>A pedir para: {table!.name}</p>
