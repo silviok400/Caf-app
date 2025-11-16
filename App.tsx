@@ -36,6 +36,45 @@ const Main: React.FC = () => {
   const { user, currentCafe, isAppLoading, staff } = useData();
   const location = useLocation();
 
+  React.useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key.toLowerCase() === 'u')
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    const intervalId = setInterval(() => {
+      const startTime = performance.now();
+      // eslint-disable-next-line no-debugger
+      debugger;
+      const endTime = performance.now();
+      if (endTime - startTime > 100) {
+        console.clear();
+        console.log('%cALERTA!', 'color: red; font-size: 24px; font-weight: bold;');
+        console.log('%cEsta área é restrita a desenvolvedores. Ações não autorizadas podem comprometer a segurança.', 'font-size: 16px;');
+      }
+    }, 1000);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      clearInterval(intervalId);
+    };
+  }, []); // Runs only once
+
   // Show spinner on initial app load OR when a cafe is selected but its data hasn't arrived yet.
   if (isAppLoading || (currentCafe && staff.length === 0)) {
     return <LoadingSpinner />;
