@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { Coffee, ChefHat, Shield, LogOut, Crown } from 'lucide-react';
+import PingIndicator from './PingIndicator';
 
 const Header: React.FC = () => {
   const { user, fullLogout, currentCafe, theme, isAdmCafe } = useData();
@@ -71,6 +72,7 @@ const Header: React.FC = () => {
               )}
             </nav>
             <div className="flex items-center gap-2 sm:gap-4">
+              <PingIndicator />
               <span className="hidden sm:inline text-sm" style={{color: 'var(--color-text-secondary)'}}>Olá, {user?.name}</span>
               <button
                 onClick={() => setIsLogoutModalOpen(true)}

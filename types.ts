@@ -127,6 +127,8 @@ export type TablePresence = {
   [tableId: string]: { user_id: string; name: string }[];
 };
 
+export type RealtimeStatus = 'connected' | 'connecting' | 'error' | 'disconnected' | 'offline';
+
 // O tipo CafeData foi removido pois a estrutura de dados aninhada não é mais necessária com o Supabase.
 // Os dados serão obtidos de tabelas individuais.
 
@@ -146,6 +148,7 @@ export interface DataContextType {
   isAdmCafe: boolean;
   feedbackSubmissions: Feedback[];
   tablePresence: TablePresence;
+  realtimeStatus: RealtimeStatus;
   findUserByPin: (pin: string) => Staff | null;
   setCurrentUser: (user: Staff, cafeIdForFlag?: string) => void;
   logout: () => void;

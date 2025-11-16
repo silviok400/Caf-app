@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react';
-import { Product, Order, Table, Staff, UserRole, OrderStatus, OrderItem, Cafe, ThemeSettings, DataContextType, Coffee, CreationCode, Feedback, TablePresence } from '../types';
+import { Product, Order, Table, Staff, UserRole, OrderStatus, OrderItem, Cafe, ThemeSettings, DataContextType, Coffee, CreationCode, Feedback, TablePresence, RealtimeStatus } from '../types';
 import { supabase } from '../supabaseClient';
 import { PostgrestError, RealtimeChannel } from '@supabase/supabase-js';
 
@@ -179,6 +179,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [feedbackSubmissions, setFeedbackSubmissions] = useState<Feedback[]>([]);
   const [tablePresence, setTablePresence] = useState<TablePresence>({});
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
+
 
   const currentCafe = useMemo(() => availableCafes.find(c => c.id === currentCafeId) || null, [availableCafes, currentCafeId]);
 
@@ -453,6 +455,60 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       channels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [currentCafeId]);
+
+  // Monitorização do estado da conexão em tempo real
+  useEffect(() => {
+    const updateOnlineStatus = () => {
+        if (!navigator.onLine) {
+            setRealtimeStatus('offline');
+        }
+    };
+
+    const handleOnline = () => setRealtimeStatus('connecting');
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', updateOnlineStatus);
+    
+    updateOnlineStatus(); // Verificação inicial
+
+    const statusInterval = setInterval(() => {
+        if (!navigator.onLine) {
+            setRealtimeStatus('offline');
+            return;
+        }
+
+        const channels = supabase.getChannels();
+        
+        if (!currentCafeId || channels.length === 0) {
+            if (user && currentCafeId) {
+                 setRealtimeStatus('connecting');
+            } else {
+                 setRealtimeStatus('connected');
+            }
+            return;
+        }
+
+        const hasError = channels.some(c => c.state === 'errored' || c.state === 'closed');
+        const isJoined = channels.every(c => c.state === 'joined');
+        const isJoining = channels.some(c => c.state === 'joining');
+
+        if (hasError) {
+            setRealtimeStatus('error');
+        } else if (isJoined) {
+            setRealtimeStatus('connected');
+        } else if (isJoining) {
+            setRealtimeStatus('connecting');
+        } else {
+            setRealtimeStatus('disconnected');
+        }
+    }, 3000);
+
+    return () => {
+        clearInterval(statusInterval);
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', updateOnlineStatus);
+    };
+  }, [currentCafeId, user]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1065,6 +1121,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     isAdmCafe,
     feedbackSubmissions,
     tablePresence,
+    realtimeStatus,
     findUserByPin,
     setCurrentUser,
     logout,
@@ -1107,7 +1164,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     untrackTablePresence,
   }), [
     user, staff, products, coffees, tables, orders, categories, currentCafe,
-    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, findUserByPin, setCurrentUser, logout,
+    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, realtimeStatus, findUserByPin, setCurrentUser, logout,
     fullLogout, addOrder, updateOrderStatus, getProductById, getOrdersForTable,
     getTotalForTable, closeTableBill, removeItemFromOrder, updateProduct, addProduct,
     deleteProduct, addStaff, updateStaff, deleteStaff, addTable, deleteTable,
