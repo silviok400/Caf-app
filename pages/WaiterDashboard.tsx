@@ -3,6 +3,24 @@ import { useData } from '../contexts/DataContext';
 import { Table, Product, OrderItem, Order, OrderStatus } from '../types';
 import { Plus, Minus, X, Send, Receipt, Ban, Mic, Search, MessageSquarePlus, CheckCircle, Loader2, Users } from 'lucide-react';
 
+const ProductItem: React.FC<{ product: Product; onAddToCart: (product: Product) => void; }> = memo(({ product, onAddToCart }) => {
+    return (
+        <button
+            onClick={() => onAddToCart(product)}
+            className="w-full text-left p-3 glass-card glass-card-highlight !rounded-xl !bg-black/10 flex justify-between items-center"
+        >
+            <div>
+                <p className="font-semibold">{product.name}</p>
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>€{product.price.toFixed(2)}</p>
+            </div>
+            <div className="p-2 bg-green-900/50 rounded-full">
+                <Plus className="text-green-300" size={20} />
+            </div>
+        </button>
+    );
+});
+
+
 const OrderModal: React.FC<{
   table: Table;
   onClose: () => void;
@@ -174,10 +192,10 @@ const OrderModal: React.FC<{
   const otherViewers = tablePresence[table.id]?.filter(p => p.user_id !== user?.id) || [];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+    <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
       {editingNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-            <div className="glass-card w-full max-w-md p-6">
+        <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <div className="modal-content glass-card w-full max-w-md p-6">
                 <h3 className="text-xl font-bold font-display mb-1">Observação para:</h3>
                 <p className="mb-4" style={{color: 'var(--color-text-secondary)'}}>{editingNote.productName}</p>
                 <textarea
@@ -195,7 +213,7 @@ const OrderModal: React.FC<{
             </div>
         </div>
       )}
-      <div className="glass-card w-full max-w-7xl h-[95vh] flex flex-col relative overflow-hidden">
+      <div className="modal-content glass-card w-full max-w-7xl h-[95vh] flex flex-col relative overflow-hidden">
         {submissionState === 'success' && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center z-20 rounded-2xl">
                 <CheckCircle size={64} className="text-green-400" />
@@ -261,26 +279,14 @@ const OrderModal: React.FC<{
                   </div>
                 </div>
 
-                <div className="space-y-3 flex-grow overflow-y-auto pr-2 -mr-2">
+                <div className="scrollable-content space-y-3 flex-grow overflow-y-auto pr-2 -mr-2">
                   {productsToDisplay.map(product => (
-                    <button
-                      key={product.id}
-                      onClick={() => addToCart(product)}
-                      className="w-full text-left p-3 glass-card glass-card-highlight !rounded-xl !bg-black/10 flex justify-between items-center"
-                    >
-                      <div>
-                          <p className="font-semibold">{product.name}</p>
-                          <p className="text-sm" style={{color: 'var(--color-text-secondary)'}}>€{product.price.toFixed(2)}</p>
-                      </div>
-                      <div className="p-2 bg-green-900/50 rounded-full">
-                          <Plus className="text-green-300" size={20}/>
-                      </div>
-                    </button>
+                    <ProductItem key={product.id} product={product} onAddToCart={addToCart} />
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="overflow-y-auto pr-2 -mr-2">
+              <div className="scrollable-content overflow-y-auto pr-2 -mr-2">
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
                     <h3 className="text-xl font-bold">Total da Conta: €{tableTotal.toFixed(2)}</h3>
                     <button
@@ -339,7 +345,7 @@ const OrderModal: React.FC<{
                   <p style={{color: 'var(--color-text-secondary)'}}>O seu cesto está vazio.<br/>Adicione produtos.</p>
               </div>
             ) : (
-              <div className="flex-grow space-y-3 overflow-y-auto pr-2 -mr-2">
+              <div className="scrollable-content flex-grow space-y-3 overflow-y-auto pr-2 -mr-2">
                   {cart.map(item => (
                     <div key={item.productId} className="flex flex-col p-2 bg-black/20 rounded-xl gap-2 border" style={{borderColor: 'var(--color-glass-border)'}}>
                       <div className="flex items-center justify-between">
@@ -389,8 +395,8 @@ const OrderModal: React.FC<{
         )}
       </div>
       {itemToCancel && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-          <div className="glass-card w-full max-w-sm p-6 text-center">
+        <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+          <div className="modal-content glass-card w-full max-w-sm p-6 text-center">
             <h3 className="text-2xl font-bold font-display mb-2">Cancelar Item</h3>
             <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar este item do pedido? Esta ação não pode ser desfeita.</p>
             <div className="flex justify-center gap-4">

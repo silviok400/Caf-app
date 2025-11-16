@@ -218,8 +218,8 @@ const OrderStatusTracker: React.FC<{
         <>
         {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
         {isCancelModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="glass-card w-full max-w-sm p-6 text-center">
+            <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="modal-content glass-card w-full max-w-sm p-6 text-center">
                     <h3 className="text-2xl font-bold font-display mb-2">Cancelar Pedido</h3>
                     <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar o seu pedido? Esta ação não pode ser desfeita.</p>
                     {cancelStatus === 'error' && <p className="text-red-400 text-sm mb-4">{cancelError}</p>}
@@ -276,7 +276,7 @@ const OrderStatusTracker: React.FC<{
                             ))}
                         </div>
 
-                        <div className="text-left max-h-48 overflow-y-auto bg-black/20 p-3 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
+                        <div className="text-left max-h-48 overflow-y-auto bg-black/20 p-3 rounded-xl border scrollable-content" style={{borderColor: 'var(--color-glass-border)'}}>
                             <h3 className="font-bold mb-2">O seu Pedido:</h3>
                             <ul className="space-y-1">
                                 {items.map((item, index) => (
@@ -308,6 +308,23 @@ const OrderStatusTracker: React.FC<{
             </div>
         </div>
         </>
+    );
+});
+
+const ProductItem: React.FC<{ product: Product; onAddToCart: (product: Product) => void; }> = memo(({ product, onAddToCart }) => {
+    return (
+        <button
+            onClick={() => onAddToCart(product)}
+            className="w-full text-left p-3 glass-card glass-card-highlight !rounded-xl flex justify-between items-center"
+        >
+            <div>
+                <p className="font-semibold text-lg" style={{ color: 'var(--color-text-primary)' }}>{product.name}</p>
+                <p className="text-md" style={{ color: 'var(--color-text-secondary)' }}>€{product.price.toFixed(2)}</p>
+            </div>
+            <div className="p-2 bg-green-900/50 rounded-full">
+                <Plus className="text-green-300" size={24} />
+            </div>
+        </button>
     );
 });
 
@@ -559,15 +576,7 @@ const CustomerMenuPage: React.FC = () => {
                                     <h2 className="text-2xl font-bold font-display mb-3 pl-2">{category}</h2>
                                     <div className="space-y-3">
                                         {items.map(product => (
-                                            <button key={product.id} onClick={() => addToCart(product)} className="w-full text-left p-3 glass-card glass-card-highlight !rounded-xl flex justify-between items-center">
-                                                <div>
-                                                    <p className="font-semibold text-lg" style={{color: 'var(--color-text-primary)'}}>{product.name}</p>
-                                                    <p className="text-md" style={{color: 'var(--color-text-secondary)'}}>€{product.price.toFixed(2)}</p>
-                                                </div>
-                                                <div className="p-2 bg-green-900/50 rounded-full">
-                                                    <Plus className="text-green-300" size={24}/>
-                                                </div>
-                                            </button>
+                                            <ProductItem key={product.id} product={product} onAddToCart={addToCart} />
                                         ))}
                                     </div>
                                 </div>
@@ -590,13 +599,13 @@ const CustomerMenuPage: React.FC = () => {
             )}
             
             {/* Cart Modal */}
-            <div className={`fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 transition-opacity ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}></div>
+            <div className={`modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 transition-opacity ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}></div>
             <div className={`fixed bottom-0 left-0 right-0 glass-card z-50 transition-transform transform ${isCartOpen ? 'translate-y-0' : 'translate-y-full'} max-h-[80vh] flex flex-col !rounded-b-none`}>
                 <header className="p-4 border-b flex justify-between items-center" style={{borderColor: 'var(--color-glass-border)'}}>
                     <h2 className="text-2xl font-bold font-display">O seu Pedido</h2>
                     <button onClick={() => setIsCartOpen(false)} style={{color: 'var(--color-text-secondary)'}} className="p-2 rounded-full hover:bg-black/20"><X/></button>
                 </header>
-                <div className="flex-grow overflow-y-auto p-4 space-y-3">
+                <div className="scrollable-content flex-grow overflow-y-auto p-4 space-y-3">
                      {cart.map(item => (
                         <div key={item.productId} className="flex flex-col p-2 bg-black/20 rounded-xl gap-2 border" style={{borderColor: 'var(--color-glass-border)'}}>
                             <div className="flex items-center justify-between">
@@ -638,8 +647,8 @@ const CustomerMenuPage: React.FC = () => {
 
             {/* Note editing modal */}
             {editingNote && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-                    <div className="glass-card w-full max-w-md p-6">
+                <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+                    <div className="modal-content glass-card w-full max-w-md p-6">
                         <h3 className="text-xl font-bold font-display mb-1">Observação para:</h3>
                         <p className="mb-4" style={{color: 'var(--color-text-secondary)'}}>{editingNote.productName}</p>
                         <textarea

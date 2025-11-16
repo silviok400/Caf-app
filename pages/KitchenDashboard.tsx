@@ -122,13 +122,13 @@ const HistoryModal: React.FC<{
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card w-full max-w-2xl h-[90vh] flex flex-col">
+    <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="modal-content glass-card w-full max-w-2xl h-[90vh] flex flex-col">
         <header className="flex items-center justify-between p-4 border-b" style={{borderColor: 'var(--color-glass-border)'}}>
           <h2 className="text-2xl font-bold font-display">Histórico de Pedidos</h2>
           <button onClick={onClose} style={{color: 'var(--color-text-secondary)'}} className="p-2 rounded-full hover:bg-black/20"><X size={24} /></button>
         </header>
-        <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        <div className="scrollable-content flex-grow overflow-y-auto p-4 space-y-4">
           {orders.length > 0 ? (
             orders.map(order => {
               const orderTotal = order.items.reduce((total, item) => total + (item.productPrice * item.quantity), 0);
@@ -270,7 +270,7 @@ const KitchenDashboard: React.FC = () => {
             {/* Column for NEW */}
             <div className="glass-card !bg-black/25 rounded-2xl p-3 sm:p-4 flex flex-col">
               <h3 className="font-bold text-lg mb-4 flex-shrink-0">Novos ({newOrders.length})</h3>
-              <div className="flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
+              <div className="scrollable-content flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
                 {newOrders.length > 0 ? (
                   newOrders.map(order => <OrderCard key={order.id} order={order} isNew={newOrderIds.has(order.id)} onAnimationEnd={handleAnimationEnd}/>)
                 ) : (
@@ -282,7 +282,7 @@ const KitchenDashboard: React.FC = () => {
             {/* Column for PREPARING */}
             <div className="glass-card !bg-black/25 rounded-2xl p-3 sm:p-4 flex flex-col">
               <h3 className="font-bold text-lg mb-4 flex-shrink-0">Em Preparo ({preparingOrders.length})</h3>
-              <div className="flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
+              <div className="scrollable-content flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
                 {preparingOrders.length > 0 ? (
                   preparingOrders.map(order => <OrderCard key={order.id} order={order} isNew={false} onAnimationEnd={() => {}} />)
                 ) : (
@@ -294,7 +294,7 @@ const KitchenDashboard: React.FC = () => {
             {/* Column for READY */}
             <div className="glass-card !bg-black/25 rounded-2xl p-3 sm:p-4 flex flex-col">
               <h3 className="font-bold text-lg mb-4 flex-shrink-0">Prontos ({readyOrders.length})</h3>
-              <div className="flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
+              <div className="scrollable-content flex-grow space-y-4 overflow-y-auto pr-2 -mr-2">
                 {readyOrders.length > 0 ? (
                   readyOrders.map(order => <OrderCard key={order.id} order={order} isNew={false} onAnimationEnd={() => {}} />)
                 ) : (
