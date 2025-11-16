@@ -2,9 +2,85 @@ import React, { useState, useMemo, useEffect, useRef, memo, useCallback } from '
 import { useData, defaultTheme } from '../contexts/DataContext';
 import { Product, Order, OrderStatus, Staff, UserRole, Cafe, ThemeSettings, Table, CreationCode, Feedback } from '../types';
 import { useNavigate } from 'react-router-dom';
-// Fix: Import 'Coffee' icon from 'lucide-react'.
-import { PlusCircle, Edit, Trash2, Download, Users, Package, BarChart2, Ban, ShieldAlert, SlidersHorizontal, Search, Hash, AlertTriangle, Paintbrush, Undo, Type, Image as ImageIcon, KeyRound, Phone, Shield, TrendingUp, DollarSign, ShoppingCart, BarChartHorizontal, QrCode, Info, Link as LinkIcon, Palette, Droplet, Copy, Check, Clock, Coffee, Loader2, Server, EyeOff, Eye, Ticket, MessageSquare, Star, User as UserIcon, Crown } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+// Fix: Import 'X' and 'Coffee' icons from 'lucide-react'.
+import { PlusCircle, Edit, Trash2, Download, Users, Package, BarChart2, Ban, ShieldAlert, SlidersHorizontal, Search, Hash, AlertTriangle, Paintbrush, Undo, Type, Image as ImageIcon, KeyRound, Phone, Shield, TrendingUp, DollarSign, ShoppingCart, BarChartHorizontal, QrCode, Info, Link as LinkIcon, Palette, Droplet, Copy, Check, Clock, Coffee, Loader2, Server, EyeOff, Eye, Ticket, MessageSquare, Star, User as UserIcon, Crown, MonitorPlay, X } from 'lucide-react';
 import TableQRCodeModal from '../components/TableQRCodeModal';
+
+const CafePreviewModal: React.FC<{
+  cafe: Cafe;
+  onClose: () => void;
+}> = ({ cafe, onClose }) => {
+    const [view, setView] = useState<'entry' | 'menu'>('entry');
+    const [firstTable, setFirstTable] = useState<Table | null>(null);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(true);
+
+    const baseUrl = window.location.href.split('#')[0];
+
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        const fetchFirstTable = async () => {
+            setIsLoadingPreview(true);
+            const { data, error } = await supabase
+                .from('tables')
+                .select('id')
+                .eq('cafe_id', cafe.id)
+                .eq('is_hidden', false)
+                .order('name', { ascending: true })
+                .limit(1)
+                .single();
+            
+            if (data) {
+                setFirstTable(data as Table);
+            } else {
+                console.warn(`No visible tables found for cafe ${cafe.name}`, error);
+            }
+            setIsLoadingPreview(false);
+        };
+
+        fetchFirstTable();
+        return () => {
+            document.body.classList.remove('modal-open');
+        }
+    }, [cafe.id, cafe.name]);
+
+    const previewUrl = useMemo(() => {
+        if (view === 'menu' && firstTable) {
+            return `${baseUrl}#/menu/${cafe.id}/${firstTable.id}`;
+        }
+        return `${baseUrl}#/join/${cafe.id}`;
+    }, [view, cafe.id, firstTable, baseUrl]);
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+        <div className="glass-card w-full max-w-5xl h-[95vh] flex flex-col">
+            <header className="flex-shrink-0 flex items-center justify-between p-4 border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                <h3 className="text-xl font-bold font-display flex items-center gap-2"><MonitorPlay size={24}/> Pré-visualização: {cafe.name}</h3>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setView('entry')} disabled={view === 'entry'} className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${view === 'entry' ? 'bg-amber-500/80 text-white' : 'secondary-button'}`}>Tela de Entrada</button>
+                    <button onClick={() => setView('menu')} disabled={view === 'menu' || !firstTable} className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${view === 'menu' ? 'bg-amber-500/80 text-white' : 'secondary-button'}`} title={!firstTable ? "Nenhuma mesa visível para pré-visualizar o cardápio" : ""}>Cardápio Cliente</button>
+                </div>
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-black/20" style={{color: 'var(--color-text-secondary)'}}><X/></button>
+            </header>
+            <main className="flex-grow p-4 flex items-center justify-center bg-black/20 overflow-auto">
+              {isLoadingPreview ? (
+                  <Loader2 className="animate-spin text-amber-300" size={48} />
+              ) : (
+                <div className="w-[400px] h-[820px] bg-stone-900 rounded-[40px] shadow-2xl p-2 border-4 border-stone-700 relative flex-shrink-0 my-4">
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 h-6 w-32 bg-stone-900 rounded-b-lg z-10"></div>
+                  <iframe 
+                      src={previewUrl}
+                      className="w-full h-full border-0 rounded-[32px] bg-white"
+                      title={`Preview of ${cafe.name}`}
+                  />
+                </div>
+              )}
+            </main>
+        </div>
+      </div>
+    );
+};
+
 
 // Reusable Confirmation Modal
 const ConfirmationModal: React.FC<{
@@ -483,6 +559,231 @@ const AccountSecurity = memo(() => {
     );
 });
 
+// --- Color Picker Helper Functions & Components ---
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 0, g: 0, b: 0 };
+};
+const rgbToHex = (r: number, g: number, b: number): string => {
+    const toHex = (c: number) => ('0' + Math.round(c).toString(16)).slice(-2);
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+const parseRgba = (rgba: string): { r: number; g: number; b: number; a: number } => {
+    const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (match) {
+        return {
+            r: parseInt(match[1], 10),
+            g: parseInt(match[2], 10),
+            b: parseInt(match[3], 10),
+            a: match[4] !== undefined ? parseFloat(match[4]) : 1,
+        };
+    }
+    const hexMatch = hexToRgb(rgba);
+    return { ...hexMatch, a: 1 };
+};
+const rgbaToString = (rgba: { r: number; g: number; b: number; a: number }): string => {
+    const alpha = Number(rgba.a.toPrecision(2));
+    return `rgba(${Math.round(rgba.r)}, ${Math.round(rgba.g)}, ${Math.round(rgba.b)}, ${alpha})`;
+};
+
+const Slider: React.FC<{
+    label: string;
+    value: number;
+    max: number;
+    gradient: string;
+    onChange: (v: number) => void;
+    displayValue?: string | number;
+    checkered?: boolean;
+}> = ({ label, value, max, gradient, onChange, displayValue, checkered = false }) => {
+    const sliderRef = useRef<HTMLDivElement>(null);
+
+    const handleInteraction = useCallback((e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+        if (!sliderRef.current) return;
+        const rect = sliderRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+        let newValue = (x / width) * max;
+        newValue = Math.max(0, Math.min(max, newValue));
+        onChange(newValue);
+    }, [onChange, max]);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        handleInteraction(e);
+        const handleMouseMove = (moveEvent: MouseEvent) => handleInteraction(moveEvent);
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp, { once: true });
+    }, [handleInteraction]);
+
+    const thumbPosition = `${(value / max) * 100}%`;
+
+    return (
+        <div>
+            <div className="flex justify-between items-center text-sm mb-1">
+                <label className="font-bold" style={{ color: 'var(--color-text-secondary)' }}>{label}</label>
+                <span className="font-mono text-xs">{displayValue ?? value}</span>
+            </div>
+            <div
+                ref={sliderRef}
+                onMouseDown={handleMouseDown}
+                className="relative h-6 flex items-center cursor-pointer"
+                role="slider"
+                aria-valuemin={0}
+                aria-valuemax={max}
+                aria-valuenow={value}
+                aria-label={label}
+            >
+                 {checkered && (
+                     <div
+                        className="absolute inset-y-2 left-0 right-0 rounded-lg"
+                        style={{ background: 'repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 10px 10px' }}
+                    />
+                 )}
+                <div className="w-full h-2 rounded-lg" style={{ background: gradient }} />
+                <div
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-stone-300 shadow-lg"
+                    style={{ left: thumbPosition, transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
+                />
+            </div>
+        </div>
+    );
+};
+
+
+const CustomColorPickerModal: React.FC<{
+    editingColorInfo: { path: string; value: string; label: string };
+    onClose: () => void;
+    onChange: (path: string, value: string) => void;
+}> = ({ editingColorInfo, onClose, onChange }) => {
+    const { path, value, label } = editingColorInfo;
+    const [internalHex, setInternalHex] = useState(value);
+    const rgb = useMemo(() => hexToRgb(internalHex), [internalHex]);
+
+    useEffect(() => { setInternalHex(value); }, [value]);
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => document.body.classList.remove('modal-open');
+    }, []);
+
+    const handleRgbChange = (newRgb: { r: number; g: number; b: number }) => {
+        const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+        setInternalHex(newHex);
+        onChange(path, newHex);
+    };
+    
+    const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newHex = e.target.value;
+        setInternalHex(newHex);
+        if (/^#[0-9a-f]{6}$/i.test(newHex)) {
+            onChange(path, newHex);
+        }
+    }
+    
+    const RgbSlider: React.FC<{ label: 'R' | 'G' | 'B'; value: number; onChange: (v: number) => void; }> = ({ label, value, onChange }) => {
+        const getGradient = () => {
+            const { r, g, b } = rgb;
+            switch (label) {
+                case 'R': return `linear-gradient(to right, rgb(0, ${g}, ${b}), rgb(255, ${g}, ${b}))`;
+                case 'G': return `linear-gradient(to right, rgb(${r}, 0, ${b}), rgb(${r}, 255, ${b}))`;
+                case 'B': return `linear-gradient(to right, rgb(${r}, ${g}, 0), rgb(${r}, ${g}, 255))`;
+            }
+        };
+        return <Slider label={label} value={value} max={255} gradient={getGradient()} onChange={onChange} displayValue={Math.round(value)} />;
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-card w-full max-w-xs p-6 space-y-4">
+                <h3 className="text-xl font-bold font-display">Editar: {label}</h3>
+                <div className="h-24 w-full rounded-lg border" style={{ backgroundColor: internalHex, borderColor: 'var(--color-glass-border)' }}></div>
+                <div className="space-y-3">
+                   <RgbSlider label="R" value={rgb.r} onChange={v => handleRgbChange({ ...rgb, r: v })} />
+                   <RgbSlider label="G" value={rgb.g} onChange={v => handleRgbChange({ ...rgb, g: v })} />
+                   <RgbSlider label="B" value={rgb.b} onChange={v => handleRgbChange({ ...rgb, b: v })} />
+                </div>
+                <div>
+                     <label className="block text-sm font-bold mb-1" style={{color: 'var(--color-text-secondary)'}}>Hex</label>
+                     <input type="text" value={internalHex} onChange={handleHexChange} className="w-full glass-input font-mono"/>
+                </div>
+                <button onClick={onClose} className="w-full secondary-button font-bold py-2.5 mt-2">Fechar</button>
+            </div>
+        </div>
+    );
+};
+
+const RgbaColorPickerModal: React.FC<{
+    editingColorInfo: { path: string; value: string; label: string };
+    onClose: () => void;
+    onChange: (path: string, value: string) => void;
+}> = ({ editingColorInfo, onClose, onChange }) => {
+    const { path, value, label } = editingColorInfo;
+    const [rgba, setRgba] = useState(() => parseRgba(value));
+
+    useEffect(() => { setRgba(parseRgba(value)); }, [value]);
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => document.body.classList.remove('modal-open');
+    }, []);
+
+    const handleRgbaChange = (newRgba: { r: number; g: number; b: number; a: number }) => {
+        setRgba(newRgba);
+        onChange(path, rgbaToString(newRgba));
+    };
+
+    const RgbSlider: React.FC<{ label: 'R' | 'G' | 'B'; value: number; onChange: (v: number) => void; }> = ({ label, value, onChange }) => {
+        const getGradient = () => {
+            const { r, g, b } = rgba;
+            switch (label) {
+                case 'R': return `linear-gradient(to right, rgb(0, ${g}, ${b}), rgb(255, ${g}, ${b}))`;
+                case 'G': return `linear-gradient(to right, rgb(${r}, 0, ${b}), rgb(${r}, 255, ${b}))`;
+                case 'B': return `linear-gradient(to right, rgb(${r}, ${g}, 0), rgb(${r}, ${g}, 255))`;
+            }
+        };
+        return <Slider label={label} value={value} max={255} gradient={getGradient()} onChange={onChange} displayValue={Math.round(value)} />;
+    };
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-card w-full max-w-xs p-6 space-y-4">
+                <h3 className="text-xl font-bold font-display">Editar: {label}</h3>
+                <div className="h-24 w-full rounded-lg border relative overflow-hidden" style={{ borderColor: 'var(--color-glass-border)' }}>
+                    <div className="absolute inset-0" style={{ background: 'repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 10px 10px' }} />
+                    <div className="absolute inset-0" style={{ backgroundColor: rgbaToString(rgba) }} />
+                </div>
+                <div className="space-y-3">
+                    <RgbSlider label="R" value={rgba.r} onChange={v => handleRgbaChange({ ...rgba, r: v })} />
+                    <RgbSlider label="G" value={rgba.g} onChange={v => handleRgbaChange({ ...rgba, g: v })} />
+                    <RgbSlider label="B" value={rgba.b} onChange={v => handleRgbaChange({ ...rgba, b: v })} />
+                    <Slider 
+                        label="Opacidade" 
+                        value={rgba.a} 
+                        max={1}
+                        gradient={`linear-gradient(to right, rgba(${rgba.r},${rgba.g},${rgba.b}, 0), rgba(${rgba.r},${rgba.g},${rgba.b}, 1))`}
+                        onChange={v => handleRgbaChange({ ...rgba, a: v })}
+                        displayValue={Number(rgba.a.toFixed(2))}
+                        checkered
+                    />
+                </div>
+                <div>
+                     <label className="block text-sm font-bold mb-1" style={{color: 'var(--color-text-secondary)'}}>RGBA</label>
+                     <input type="text" value={rgbaToString(rgba)} readOnly className="w-full glass-input font-mono"/>
+                </div>
+                <button onClick={onClose} className="w-full secondary-button font-bold py-2.5 mt-2">Fechar</button>
+            </div>
+        </div>
+    );
+};
+
+
 const AppearanceCustomization = memo(() => {
     const { theme, updateTheme, currentCafe, updateCafe } = useData();
     const [localTheme, setLocalTheme] = useState<ThemeSettings>(theme);
@@ -491,6 +792,8 @@ const AppearanceCustomization = memo(() => {
     const [bgError, setBgError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [editingColor, setEditingColor] = useState<{ path: string; value: string; label: string } | null>(null);
+    const [editingRgbaColor, setEditingRgbaColor] = useState<{ path: string; value: string; label: string } | null>(null);
 
     useEffect(() => {
         setLocalTheme(theme);
@@ -547,15 +850,61 @@ const AppearanceCustomization = memo(() => {
         setIsSaving(false);
     };
     
-    const ColorInput: React.FC<{ label: string, path: string }> = ({ label, path }) => (
-        <div>
-            <label className="block text-sm font-bold mb-1" style={{color: 'var(--color-text-secondary)'}}>{label}</label>
-            <div className="flex items-center gap-3">
-                <input type="color" value={path.split('.').reduce((o, i) => o[i], localTheme as any)} onChange={e => handleValueChange(path, e.target.value)} className="p-0 h-10 w-10 block bg-transparent border rounded-md cursor-pointer" style={{borderColor: 'var(--color-glass-border)'}} />
-                <input type="text" value={path.split('.').reduce((o, i) => o[i], localTheme as any)} onChange={e => handleValueChange(path, e.target.value)} className="w-full glass-input !py-2 !px-3 font-mono text-sm" />
+    const ColorInput: React.FC<{ label: string, path: string }> = ({ label, path }) => {
+        const value = path.split('.').reduce((o, i) => o[i], localTheme as any);
+        return (
+            <div>
+                <label className="block text-sm font-bold mb-1" style={{color: 'var(--color-text-secondary)'}}>{label}</label>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setEditingColor({ path, value, label })}
+                        className="h-10 w-10 flex-shrink-0 cursor-pointer rounded-md border"
+                        style={{
+                            backgroundColor: value,
+                            borderColor: 'var(--color-glass-border)'
+                        }}
+                        aria-label={`Editar cor ${label}`}
+                    />
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={e => {
+                            handleValueChange(path, e.target.value);
+                        }}
+                        className="w-full glass-input !py-2 !px-3 font-mono text-sm"
+                    />
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
+
+    const RgbaColorInput: React.FC<{ label: string; path: string }> = ({ label, path }) => {
+        const value = path.split('.').reduce((o, i) => o[i], localTheme as any);
+        return (
+            <div>
+                <label className="block text-sm font-bold mb-1" style={{color: 'var(--color-text-secondary)'}}>{label}</label>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setEditingRgbaColor({ path, value, label })}
+                        className="h-10 w-10 flex-shrink-0 cursor-pointer rounded-md border relative overflow-hidden"
+                        style={{ borderColor: 'var(--color-glass-border)' }}
+                        aria-label={`Editar cor ${label}`}
+                    >
+                        <div className="absolute inset-0" style={{ background: 'repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 10px 10px' }} />
+                        <div className="absolute inset-0" style={{ backgroundColor: value }} />
+                    </button>
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={e => handleValueChange(path, e.target.value)}
+                        className="w-full glass-input !py-2 !px-3 font-mono text-sm"
+                    />
+                </div>
+            </div>
+        );
+    };
     
     return (
         <div className="mt-8 pt-8 border-t" style={{borderColor: 'var(--color-glass-border)'}}>
@@ -625,9 +974,9 @@ const AppearanceCustomization = memo(() => {
                     </div>
                     <h5 className="text-md font-bold mt-6 mb-2 flex items-center gap-2"><Droplet size={16}/>Efeito Vidro</h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                        <ColorInput label="Fundo do Cartão" path="colors.glassBackground" />
-                        <ColorInput label="Borda do Cartão" path="colors.glassBorder" />
-                        <ColorInput label="Borda do Cartão (Hover)" path="colors.glassBorderHighlight" />
+                        <RgbaColorInput label="Fundo do Cartão" path="colors.glassBackground" />
+                        <RgbaColorInput label="Borda do Cartão" path="colors.glassBorder" />
+                        <RgbaColorInput label="Borda do Cartão (Hover)" path="colors.glassBorderHighlight" />
                     </div>
                     <h5 className="text-md font-bold mt-6 mb-2">Cores das Mesas</h5>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
@@ -683,6 +1032,26 @@ const AppearanceCustomization = memo(() => {
                     </button>
                 </div>
              </div>
+             {editingColor && (
+                <CustomColorPickerModal
+                    editingColorInfo={editingColor}
+                    onClose={() => setEditingColor(null)}
+                    onChange={(path, value) => {
+                        handleValueChange(path, value);
+                        setEditingColor(prev => prev ? {...prev, value} : null);
+                    }}
+                />
+            )}
+            {editingRgbaColor && (
+                <RgbaColorPickerModal
+                    editingColorInfo={editingRgbaColor}
+                    onClose={() => setEditingRgbaColor(null)}
+                    onChange={(path, value) => {
+                        handleValueChange(path, value);
+                        setEditingRgbaColor(prev => prev ? { ...prev, value } : null);
+                    }}
+                />
+            )}
         </div>
     );
 });
@@ -1776,12 +2145,21 @@ const PlatformAdminPanel = memo(() => {
     const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
     const [cafeToDelete, setCafeToDelete] = useState<Cafe | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
+    const [previewingCafe, setPreviewingCafe] = useState<Cafe | null>(null);
 
     const [activeCodes, setActiveCodes] = useState<CreationCode[]>([]);
     const [isLoadingCodes, setIsLoadingCodes] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const [codesError, setCodesError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState('cafes');
+
+    const tabs = [
+        { id: 'cafes', label: 'Gestão de Cafés', icon: Server },
+        { id: 'codes', label: 'Códigos de Convite', icon: Ticket },
+        { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+        { id: 'settings', label: 'Definições', icon: SlidersHorizontal }
+    ];
 
     const fetchCodes = useCallback(async () => {
         setIsLoadingCodes(true);
@@ -1801,10 +2179,12 @@ const PlatformAdminPanel = memo(() => {
     }, [getActiveCreationCodes]);
 
     useEffect(() => {
-        fetchCodes();
-        const interval = setInterval(fetchCodes, 10000);
-        return () => clearInterval(interval);
-    }, [fetchCodes]);
+        if (activeTab === 'codes') {
+            fetchCodes();
+            const interval = setInterval(fetchCodes, 10000);
+            return () => clearInterval(interval);
+        }
+    }, [activeTab, fetchCodes]);
 
     const handleGenerateCode = async () => {
         setIsGenerating(true);
@@ -1852,143 +2232,191 @@ const PlatformAdminPanel = memo(() => {
         if (!result.success) setActionError(result.message);
     };
 
-    return (
-        <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-12">
-            <h2 className="text-3xl lg:text-4xl font-bold font-display text-center flex items-center justify-center gap-4">
-                <Crown size={36} className="icon-glow" style={{color: 'var(--color-secondary)'}} />
-                Administração da Plataforma
-            </h2>
-            
-            {actionError && (
-                <div className="bg-red-900/50 text-red-300 p-4 rounded-xl text-sm flex items-start gap-2">
-                    <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'cafes':
+                return (
                     <div>
-                        <strong className="font-bold">Ocorreu um Erro</strong>
-                        <p>{actionError}</p>
-                    </div>
-                </div>
-            )}
-            
-            {/* Cafe Management Section */}
-            <section>
-                <h3 className="text-2xl font-bold font-display mb-4 flex items-center gap-3"><Server /> Gestão de Cafés</h3>
-                <div className="glass-card p-4 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead className="bg-black/20">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Nome do Café</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Visibilidade</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
-                                {availableCafes.filter(c => c.id !== currentCafe?.id).map(cafe => (
-                                    <tr key={cafe.id}>
-                                        <td className="px-4 py-3 whitespace-nowrap font-medium">{cafe.name}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <button onClick={() => handlePlatformVisibilityToggle(cafe)} className="flex items-center gap-2 text-sm">
-                                                {cafe.is_server_hidden ? <><EyeOff size={16} className="text-stone-400" /> Oculto</> : <><Eye size={16} className="text-green-400" /> Público</>}
-                                            </button>
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <button onClick={() => setCafeToDelete(cafe)} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 text-sm font-semibold"><Trash2 size={16}/> Apagar</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-             {/* Invitation Code Section */}
-            <section>
-                <h3 className="text-2xl font-bold font-display mb-4 flex items-center gap-3"><Ticket /> Códigos de Convite</h3>
-                <div className="glass-card p-4">
-                    {codesError && (
-                        <div className="bg-red-900/50 text-red-300 p-3 rounded-xl text-sm mb-4 flex items-start gap-2">
-                            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
-                            <div><strong className="font-bold">Ocorreu um Erro:</strong> <p>{codesError}</p></div>
+                        <h3 className="text-2xl font-bold font-display mb-4">Gestão de Cafés</h3>
+                        <div className="glass-card p-4 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead className="bg-black/20">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Nome do Café</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Visibilidade</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
+                                        {availableCafes.filter(c => c.id !== currentCafe?.id).map(cafe => (
+                                            <tr key={cafe.id}>
+                                                <td className="px-4 py-3 whitespace-nowrap font-medium">{cafe.name}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <button onClick={() => handlePlatformVisibilityToggle(cafe)} className="flex items-center gap-2 text-sm">
+                                                        {cafe.is_server_hidden ? <><EyeOff size={16} className="text-stone-400" /> Oculto</> : <><Eye size={16} className="text-green-400" /> Público</>}
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-4">
+                                                        <button onClick={() => setPreviewingCafe(cafe)} className="text-blue-400 hover:text-blue-300 flex items-center gap-1.5 text-sm font-semibold">
+                                                            <MonitorPlay size={16}/> Visualizar
+                                                        </button>
+                                                        <button onClick={() => setCafeToDelete(cafe)} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 text-sm font-semibold">
+                                                            <Trash2 size={16}/> Apagar
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    )}
-                    <p style={{ color: 'var(--color-text-secondary)' }} className="mb-4 text-sm">Gere códigos de convite para permitir que novos cafés sejam criados. Cada código é válido por 15 minutos.</p>
-                    <button onClick={handleGenerateCode} disabled={isGenerating} className="w-full premium-gradient-button py-2.5 flex items-center justify-center gap-2 text-base mb-4">
-                        {isGenerating ? <Loader2 className="animate-spin"/> : <PlusCircle />}
-                        {isGenerating ? 'A gerar...' : 'Gerar Novo Código'}
-                    </button>
-                    <div className="max-h-60 overflow-y-auto pr-2 -mr-2 space-y-2">
-                         {isLoadingCodes ? <Loader2 className="animate-spin text-amber-300 mx-auto my-8" /> : 
-                            activeCodes.length === 0 ? <p className="text-center py-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum código ativo.</p> :
-                            activeCodes.map(code => (
-                                <div key={code.code} className="bg-black/20 p-2 rounded-lg flex items-center justify-between gap-4 text-sm">
-                                    <span className="font-mono tracking-wider">{code.code.replace(/(.{5})/g, '$1 ').trim()}</span>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1.5"><Clock size={14} /><Countdown createdAt={code.created_at} /></div>
-                                        <button onClick={() => handleCopyCode(code.code)} className="secondary-button font-semibold py-1 px-2 flex items-center gap-1 text-xs">
-                                            {copiedCode === code.code ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-                                            {copiedCode === code.code ? 'Copiado' : 'Copiar'}
+                    </div>
+                );
+            case 'codes':
+                return (
+                    <div>
+                        <h3 className="text-2xl font-bold font-display mb-4">Códigos de Convite</h3>
+                        <div className="glass-card p-4">
+                            {codesError && (
+                                <div className="bg-red-900/50 text-red-300 p-3 rounded-xl text-sm mb-4 flex items-start gap-2">
+                                    <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+                                    <div><strong className="font-bold">Ocorreu um Erro:</strong> <p>{codesError}</p></div>
+                                </div>
+                            )}
+                            <p style={{ color: 'var(--color-text-secondary)' }} className="mb-4 text-sm">Gere códigos de convite para permitir que novos cafés sejam criados. Cada código é válido por 15 minutos.</p>
+                            <button onClick={handleGenerateCode} disabled={isGenerating} className="w-full premium-gradient-button py-2.5 flex items-center justify-center gap-2 text-base mb-4">
+                                {isGenerating ? <Loader2 className="animate-spin"/> : <PlusCircle />}
+                                {isGenerating ? 'A gerar...' : 'Gerar Novo Código'}
+                            </button>
+                            <div className="max-h-60 overflow-y-auto pr-2 -mr-2 space-y-2">
+                                {isLoadingCodes ? <Loader2 className="animate-spin text-amber-300 mx-auto my-8" /> : 
+                                    activeCodes.length === 0 ? <p className="text-center py-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum código ativo.</p> :
+                                    activeCodes.map(code => (
+                                        <div key={code.code} className="bg-black/20 p-2 rounded-lg flex items-center justify-between gap-4 text-sm">
+                                            <span className="font-mono tracking-wider">{code.code.replace(/(.{5})/g, '$1 ').trim()}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-1.5"><Clock size={14} /><Countdown createdAt={code.created_at} /></div>
+                                                <button onClick={() => handleCopyCode(code.code)} className="secondary-button font-semibold py-1 px-2 flex items-center gap-1 text-xs">
+                                                    {copiedCode === code.code ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                                                    {copiedCode === code.code ? 'Copiado' : 'Copiar'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'feedback':
+                return (
+                    <div>
+                        <h3 className="text-2xl font-bold font-display mb-4">Feedback de Utilizadores</h3>
+                        <div className="glass-card p-4">
+                            <FeedbackManagement />
+                        </div>
+                    </div>
+                );
+            case 'settings':
+                return (
+                    <div>
+                        <h3 className="text-2xl font-bold font-display mb-4">Definições da Plataforma</h3>
+                        <div className="pt-8 border-t-2 border-red-500/50">
+                            <h3 className="text-2xl font-bold text-red-300 font-display">Zona de Perigo (Servidor ADM)</h3>
+                            <div className="bg-red-900/20 p-6 rounded-2xl mt-4 border border-red-500/30 space-y-6">
+                                <div>
+                                    <h4 className="text-lg font-semibold">Visibilidade do Servidor de Administração</h4>
+                                    <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Oculte este servidor da lista pública. Apenas poderá acedê-lo através de um link direto ou se já tiver entrado como gerente neste dispositivo.</p>
+                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
+                                        <label htmlFor="hide-server-toggle" className="font-medium pr-4 cursor-pointer">Ocultar servidor ADM da lista pública</label>
+                                        <button
+                                            id="hide-server-toggle"
+                                            role="switch"
+                                            aria-checked={!!currentCafe?.is_server_hidden}
+                                            onClick={handleToggleHideServer}
+                                            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-background)] ${currentCafe?.is_server_hidden ? 'bg-red-600' : 'bg-stone-600'}`}
+                                            style={{'--tw-ring-color': 'var(--color-secondary)'} as React.CSSProperties}
+                                        >
+                                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${currentCafe?.is_server_hidden ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
                                 </div>
-                            ))
-                         }
-                    </div>
-                </div>
-            </section>
-            
-            {/* Feedback Section */}
-            <section>
-                 <h3 className="text-2xl font-bold font-display mb-4 flex items-center gap-3"><MessageSquare /> Feedback de Utilizadores</h3>
-                 <div className="glass-card p-4">
-                    <FeedbackManagement />
-                 </div>
-            </section>
-
-            {/* Danger Zone Section */}
-            <section className="pt-8 border-t-2 border-red-500/50">
-                <h3 className="text-2xl font-bold text-red-300 font-display">Zona de Perigo (Servidor ADM)</h3>
-                <div className="bg-red-900/20 p-6 rounded-2xl mt-4 border border-red-500/30 space-y-6">
-                    <div>
-                        <h4 className="text-lg font-semibold">Visibilidade do Servidor de Administração</h4>
-                        <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Oculte este servidor da lista pública. Apenas poderá acedê-lo através de um link direto ou se já tiver entrado como gerente neste dispositivo.</p>
-                        <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
-                            <label htmlFor="hide-server-toggle" className="font-medium pr-4 cursor-pointer">Ocultar servidor ADM da lista pública</label>
-                            <button
-                                id="hide-server-toggle"
-                                role="switch"
-                                aria-checked={!!currentCafe?.is_server_hidden}
-                                onClick={handleToggleHideServer}
-                                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-background)] ${currentCafe?.is_server_hidden ? 'bg-red-600' : 'bg-stone-600'}`}
-                                style={{'--tw-ring-color': 'var(--color-secondary)'} as React.CSSProperties}
-                            >
-                                <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${currentCafe?.is_server_hidden ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
+                                <div className="pt-6 border-t" style={{borderColor: 'var(--color-glass-border)'}}>
+                                    <h4 className="text-lg font-semibold">Apagar Servidor de Administração</h4>
+                                    <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Atenção: Esta ação é permanente e irá apagar o servidor principal da plataforma. Isto irá impedir a criação de novos cafés.</p>
+                                    <button 
+                                        onClick={() => setIsDeleteServerModalOpen(true)} 
+                                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                                        disabled
+                                        title="Esta funcionalidade está desativada."
+                                    >
+                                        <Trash2 /> Apagar Servidor ADM Permanentemente
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="pt-6 border-t" style={{borderColor: 'var(--color-glass-border)'}}>
-                         <h4 className="text-lg font-semibold">Apagar Servidor de Administração</h4>
-                        <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Atenção: Esta ação é permanente e irá apagar o servidor principal da plataforma. Isto irá impedir a criação de novos cafés.</p>
-                        <button 
-                            onClick={() => setIsDeleteServerModalOpen(true)} 
-                            className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                            disabled
-                            title="Esta funcionalidade está desativada."
-                        >
-                            <Trash2 /> Apagar Servidor ADM Permanentemente
-                        </button>
+                );
+            default:
+                return null;
+        }
+    }
+
+    return (
+        <div className="p-4 sm:p-6 md:p-8 min-h-[calc(100vh-7rem)]">
+            <div className="max-w-7xl mx-auto">
+                <h2 className="text-3xl lg:text-4xl font-bold font-display text-center flex items-center justify-center gap-4">
+                    <Crown size={36} className="icon-glow" style={{color: 'var(--color-secondary)'}} />
+                    Administração da Plataforma
+                </h2>
+
+                {actionError && (
+                    <div className="bg-red-900/50 text-red-300 p-4 rounded-xl text-sm flex items-start gap-2 mt-6">
+                        <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+                        <div>
+                            <strong className="font-bold">Ocorreu um Erro</strong>
+                            <p>{actionError}</p>
+                        </div>
+                    </div>
+                )}
+            
+                <div className="flex flex-col lg:flex-row gap-8 mt-8">
+                    <aside className="lg:w-64 flex-shrink-0">
+                        <nav className="sticky top-28">
+                            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+                                {tabs.map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 font-semibold transition-colors whitespace-nowrap !rounded-2xl ${
+                                            activeTab === tab.id
+                                                ? 'premium-gradient-button'
+                                                : 'secondary-button'
+                                        }`}
+                                    >
+                                        <tab.icon size={20} />
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </nav>
+                    </aside>
+                    <div className="flex-grow min-w-0">
+                        {renderContent()}
                     </div>
                 </div>
-            </section>
-
+            </div>
             {currentCafe && <DeleteServerConfirmationModal isOpen={isDeleteServerModalOpen} cafe={currentCafe} onClose={() => setIsDeleteServerModalOpen(false)} onConfirm={handleConfirmServerDelete} />}
-            
             <PlatformDeleteCafeConfirmationModal 
                 isOpen={!!cafeToDelete} 
                 cafe={cafeToDelete}
                 onClose={() => setCafeToDelete(null)} 
                 onConfirm={handlePlatformDelete} 
             />
+            {previewingCafe && <CafePreviewModal cafe={previewingCafe} onClose={() => setPreviewingCafe(null)} />}
         </div>
     );
 });

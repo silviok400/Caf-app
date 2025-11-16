@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Product, OrderItem, Order, OrderStatus } from '../types';
-import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp, Star, Ban } from 'lucide-react';
+import { Product, OrderItem, Order, OrderStatus, Table } from '../types';
+import { Plus, Minus, Search, ShoppingCart, Send, MessageSquarePlus, X, CheckCircle, Loader2, MonitorPlay, AlertTriangle, Receipt, ChefHat, Bell, ThumbsUp, Star, Ban, UtensilsCrossed } from 'lucide-react';
 
 
 const ErrorDisplay: React.FC<{ message: string }> = memo(({ message }) => {
@@ -70,7 +70,7 @@ const FeedbackModal: React.FC<{ onClose: () => void }> = memo(({ onClose }) => {
     };
     
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="glass-card w-full max-w-md p-6 relative" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-full hover:bg-black/20" style={{color: 'var(--color-text-secondary)'}}>
                     <X />
@@ -135,181 +135,153 @@ const FeedbackModal: React.FC<{ onClose: () => void }> = memo(({ onClose }) => {
     );
 });
 
-const StatusStep: React.FC<{ icon: React.ElementType; label: string; isActive: boolean; isCompleted: boolean; }> = ({ icon: Icon, label, isActive, isCompleted }) => {
-    return (
-        <div className="flex flex-col items-center text-center">
-            <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-2 transition-all duration-500
-                ${isCompleted ? 'bg-green-500 border-green-400' : ''}
-                ${isActive ? 'bg-amber-500 border-amber-300 animate-pulse' : ''}
-                ${!isActive && !isCompleted ? 'bg-stone-700 border-stone-600' : ''}
-            `}>
-                <Icon size={24} sm={32} className="text-white" />
-            </div>
-            <p className={`mt-2 text-xs sm:text-sm font-semibold transition-colors
-                ${isActive || isCompleted ? 'text-white' : 'text-stone-400'}
-            `}>{label}</p>
-        </div>
-    );
-};
-
-const OrderStatusTracker: React.FC<{ 
-    orderId: string; 
-    onPlaceNewOrder: () => void;
-    isFirstOrder: boolean;
-}> = memo(({ orderId, onPlaceNewOrder, isFirstOrder }) => {
-    const { orders, customerCancelOrder } = useData();
+const CustomerOrderStatusPage: React.FC<{
+    table: Table;
+    onNavigateToMenu: () => void;
+    isFirstOrderInSession: boolean;
+}> = memo(({ table, onNavigateToMenu, isFirstOrderInSession }) => {
+    const { getOrdersForTable, getTotalForTable, customerCancelOrder, theme } = useData();
     const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
     const [cancelStatus, setCancelStatus] = useState<'idle' | 'loading' | 'error'>('idle');
     const [cancelError, setCancelError] = useState('');
-    
+
     useEffect(() => {
-        if (isFirstOrder) {
-            const timer = setTimeout(() => setIsFeedbackModalOpen(true), 2500); // Open after a small delay
+        if (isFirstOrderInSession) {
+            const timer = setTimeout(() => setIsFeedbackModalOpen(true), 3000);
             return () => clearTimeout(timer);
         }
-    }, [isFirstOrder]);
-    
-    const trackedOrder = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId]);
+    }, [isFirstOrderInSession]);
+
+    const activeOrders = useMemo(() =>
+        getOrdersForTable(table.id)
+            .filter(o => o.status !== OrderStatus.PAID && o.status !== OrderStatus.CANCELLED)
+            .sort((a, b) => b.created_at.getTime() - a.created_at.getTime()),
+        [getOrdersForTable, table.id]
+    );
+
+    const total = useMemo(() => getTotalForTable(table.id), [getTotalForTable, table.id, activeOrders]);
 
     const handleCancelOrder = async () => {
+        if (!orderToCancel) return;
         setCancelStatus('loading');
         setCancelError('');
-        const result = await customerCancelOrder(orderId);
+        const result = await customerCancelOrder(orderToCancel.id);
         if (!result.success) {
             setCancelError(result.message);
             setCancelStatus('error');
-             // Hide the modal after showing the error for a bit
             setTimeout(() => {
-                setIsCancelModalOpen(false);
+                setOrderToCancel(null);
                 setCancelStatus('idle');
             }, 3000);
         } else {
-            // Success! The UI will update automatically via realtime.
-            setIsCancelModalOpen(false);
+            setOrderToCancel(null);
             setCancelStatus('idle');
         }
     };
 
-    if (!trackedOrder) {
-        return <LoadingDisplay message="A aguardar confirmação do pedido..." />;
-    }
-
-    const { status, items } = trackedOrder;
-
-    const statusMap = {
-        [OrderStatus.NEW]: 1,
-        [OrderStatus.PREPARING]: 2,
-        [OrderStatus.READY]: 3,
-        [OrderStatus.SERVED]: 4,
-        [OrderStatus.PAID]: 4,
-        [OrderStatus.CANCELLED]: 0
+    const getStatusInfo = (status: OrderStatus) => {
+        const statusKey = (Object.keys(OrderStatus) as Array<keyof typeof OrderStatus>).find(key => OrderStatus[key] === status)?.toLowerCase() || 'cancelled';
+        const color = theme.statusColors[statusKey as keyof typeof theme.statusColors] || theme.statusColors.cancelled;
+        const icons: { [key in OrderStatus]?: React.ElementType } = {
+            [OrderStatus.NEW]: Receipt,
+            [OrderStatus.PREPARING]: UtensilsCrossed,
+            [OrderStatus.READY]: Bell,
+            [OrderStatus.SERVED]: ThumbsUp,
+            [OrderStatus.CANCELLED]: Ban,
+        };
+        return {
+            text: status,
+            color: color,
+            Icon: icons[status] || Ban
+        };
     };
-    const currentStep = statusMap[status] || 0;
-    
-    const steps = [
-        { icon: Receipt, label: 'Recebido' },
-        { icon: ChefHat, label: 'Em Preparo' },
-        { icon: Bell, label: 'Pronto' },
-        { icon: ThumbsUp, label: 'Entregue' },
-    ];
 
     return (
         <>
-        {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
-        {isCancelModalOpen && (
-            <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="modal-content glass-card w-full max-w-sm p-6 text-center">
-                    <h3 className="text-2xl font-bold font-display mb-2">Cancelar Pedido</h3>
-                    <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar o seu pedido? Esta ação não pode ser desfeita.</p>
-                    {cancelStatus === 'error' && <p className="text-red-400 text-sm mb-4">{cancelError}</p>}
-                    <div className="flex justify-center gap-4">
-                        <button
-                            onClick={() => setIsCancelModalOpen(false)}
-                            disabled={cancelStatus === 'loading'}
-                            className="w-full secondary-button font-bold py-3"
-                        >
-                            Anular
-                        </button>
-                        <button
-                            onClick={handleCancelOrder}
-                            disabled={cancelStatus === 'loading'}
-                            className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700 flex items-center justify-center"
-                        >
-                            {cancelStatus === 'loading' ? <Loader2 className="animate-spin"/> : 'Confirmar'}
-                        </button>
+            {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
+            {orderToCancel && (
+                 <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                    <div className="modal-content glass-card w-full max-w-sm p-6 text-center">
+                        <h3 className="text-2xl font-bold font-display mb-2">Cancelar Pedido</h3>
+                        <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar este pedido? Esta ação não pode ser desfeita.</p>
+                        {cancelStatus === 'error' && <p className="text-red-400 text-sm mb-4">{cancelError}</p>}
+                        <div className="flex justify-center gap-4">
+                            <button onClick={() => setOrderToCancel(null)} disabled={cancelStatus === 'loading'} className="w-full secondary-button font-bold py-3">Anular</button>
+                            <button onClick={handleCancelOrder} disabled={cancelStatus === 'loading'} className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700 flex items-center justify-center">
+                                {cancelStatus === 'loading' ? <Loader2 className="animate-spin"/> : 'Confirmar'}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        )}
-
-        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4 animate-fade-in">
-            <div className="glass-card p-6 sm:p-8 max-w-2xl w-full">
-                {status === OrderStatus.CANCELLED ? (
-                    <>
-                         <Ban size={56} className="mx-auto text-red-400 mb-4" />
-                         <h2 className="text-3xl font-bold font-display">Pedido Cancelado</h2>
-                         <p style={{color: 'var(--color-text-secondary)'}} className="mt-2">O seu pedido foi cancelado com sucesso.</p>
-                    </>
-                ) : (
-                    <>
-                        <h2 className="text-3xl font-bold font-display">O seu pedido está a caminho!</h2>
-                        <p style={{color: 'var(--color-text-secondary)'}} className="mt-2 mb-8">Acompanhe o progresso em tempo real abaixo.</p>
-                        
-                        <div className="relative flex justify-between items-center w-full max-w-lg mx-auto mb-10 px-2">
-                            <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-1 bg-stone-700" style={{ transform: 'translateY(-24px) sm:translateY(-32px)' }}></div>
-                            <div 
-                                className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-green-500 transition-all duration-1000"
-                                style={{ 
-                                    width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
-                                    transform: 'translateY(-24px) sm:translateY(-32px)'
-                                }}
-                            ></div>
-                            {steps.map((step, index) => (
-                                <StatusStep 
-                                    key={index} 
-                                    icon={step.icon} 
-                                    label={step.label}
-                                    isActive={currentStep === index + 1}
-                                    isCompleted={currentStep > index + 1}
-                                />
-                            ))}
+            )}
+            <div className="min-h-screen w-full flex flex-col items-center p-2 sm:p-4">
+                <div className="w-full max-w-3xl flex-grow flex flex-col">
+                    <header className="py-4 sticky top-0 bg-[var(--color-background)] z-20 w-full mb-4">
+                         <div className="glass-card p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h1 className="text-3xl font-bold font-display text-center sm:text-left">Conta da {table.name}</h1>
+                                <p className="text-center sm:text-left font-semibold text-lg" style={{color: 'var(--color-secondary)'}}>Total: €{total.toFixed(2)}</p>
+                            </div>
+                            <button onClick={onNavigateToMenu} className="w-full sm:w-auto premium-gradient-button font-bold py-3 px-6 rounded-lg text-lg flex items-center justify-center gap-2">
+                                <Plus size={22}/> Adicionar Itens
+                            </button>
                         </div>
-
-                        <div className="text-left max-h-48 overflow-y-auto bg-black/20 p-3 rounded-xl border scrollable-content" style={{borderColor: 'var(--color-glass-border)'}}>
-                            <h3 className="font-bold mb-2">O seu Pedido:</h3>
-                            <ul className="space-y-1">
-                                {items.map((item, index) => (
-                                    <li key={index} className="text-sm flex justify-between">
-                                        <span style={{color: 'var(--color-text-secondary)'}}>{item.quantity}x {item.productName}</span>
-                                        <span>€{(item.productPrice * item.quantity).toFixed(2)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </>
-                )}
-                <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                    {status === OrderStatus.NEW && (
-                        <button
-                            onClick={() => setIsCancelModalOpen(true)}
-                            className="w-full secondary-button !bg-red-900/40 !border-red-500/50 hover:!bg-red-900/60 text-red-300 font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2"
-                        >
-                            <Ban size={20}/> Cancelar Pedido
-                        </button>
-                    )}
-                    <button 
-                        onClick={onPlaceNewOrder}
-                        className="w-full premium-gradient-button font-bold py-3 px-6 rounded-lg"
-                    >
-                        Fazer Novo Pedido
-                    </button>
+                    </header>
+                    <main className="flex-grow scrollable-content overflow-y-auto pr-2 -mr-2">
+                        {activeOrders.length > 0 ? (
+                            <div className="space-y-4">
+                                {activeOrders.map(order => {
+                                    const { text, color, Icon } = getStatusInfo(order.status);
+                                    return (
+                                        <div key={order.id} className="glass-card !bg-black/20 p-4 rounded-2xl border-l-4" style={{ borderColor: color }}>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <p className="font-bold">Pedido às {order.created_at.toLocaleTimeString()}</p>
+                                                    <p className="text-sm" style={{color: 'var(--color-text-secondary)'}}>ID: ...{order.id.slice(-6)}</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="flex items-center justify-center gap-2 px-3 py-1 text-sm font-semibold rounded-full" style={{ backgroundColor: `color-mix(in srgb, ${color} 30%, transparent)`, color: `color-mix(in srgb, ${color} 85%, white)` }}>
+                                                        <Icon size={16} /> {text}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <ul className="space-y-2 border-t pt-3" style={{borderColor: 'var(--color-glass-border)'}}>
+                                                {order.items.map((item, index) => (
+                                                    <li key={index} className="flex justify-between items-start">
+                                                        <div>
+                                                          <p className="font-medium">{item.quantity}x {item.productName}</p>
+                                                          {item.notes && <p className="text-xs italic pl-4">↳ {item.notes}</p>}
+                                                        </div>
+                                                        <span className="font-medium">€{(item.productPrice * item.quantity).toFixed(2)}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            {order.status === OrderStatus.NEW && (
+                                                <div className="mt-4 text-right">
+                                                    <button onClick={() => setOrderToCancel(order)} className="text-red-300 hover:text-red-200 text-xs font-semibold flex items-center gap-1 ml-auto">
+                                                        <Ban size={14}/> Cancelar Pedido
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                             <div className="flex flex-col items-center justify-center text-center h-full glass-card p-8">
+                                <ThumbsUp size={64} className="text-stone-400" />
+                                <h2 className="text-2xl font-bold mt-4">Tudo em ordem!</h2>
+                                <p className="text-lg mt-2" style={{color: 'var(--color-text-secondary)'}}>A sua conta está paga. Adicione novos itens para começar um novo pedido.</p>
+                            </div>
+                        )}
+                    </main>
                 </div>
             </div>
-        </div>
         </>
     );
 });
+
 
 const ProductItem: React.FC<{ product: Product; onAddToCart: (product: Product) => void; }> = memo(({ product, onAddToCart }) => {
     return (
@@ -344,8 +316,8 @@ const CustomerMenuPage: React.FC = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [editingNote, setEditingNote] = useState<OrderItem | null>(null);
-    const [orderState, setOrderState] = useState<'idle' | 'sending' | 'sent'>('idle');
-    const [sentOrderId, setSentOrderId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [view, setView] = useState<'menu' | 'status'>('menu');
     const [fullscreenState, setFullscreenState] = useState<'idle' | 'requested' | 'active' | 'failed'>('idle');
     const [noteText, setNoteText] = useState('');
 
@@ -462,12 +434,11 @@ const CustomerMenuPage: React.FC = () => {
 
     const handleSubmitOrder = async () => {
         if (cart.length > 0 && tableId) {
-            setOrderState('sending');
+            setIsSubmitting(true);
             try {
                 const newOrder = await addOrder(tableId, cart, true);
                 if (newOrder) {
-                    setSentOrderId(newOrder.id);
-                    setOrderState('sent');
+                    setView('status');
                     setCart([]);
                     setIsCartOpen(false);
                     if (isFirstOrderInSession.current) {
@@ -479,7 +450,8 @@ const CustomerMenuPage: React.FC = () => {
             } catch (error) {
                 console.error("Failed to submit order:", error);
                 alert("Ocorreu um erro ao enviar o seu pedido. Por favor, tente novamente.");
-                setOrderState('idle');
+            } finally {
+                setIsSubmitting(false);
             }
         }
     };
@@ -523,18 +495,15 @@ const CustomerMenuPage: React.FC = () => {
         );
     }
     
-    if (orderState === 'sent' && sentOrderId) {
-         return (
-            <OrderStatusTracker 
-                orderId={sentOrderId}
-                isFirstOrder={isFirstOrderInSession.current}
-                onPlaceNewOrder={() => {
-                    setOrderState('idle');
-                    setSentOrderId(null);
-                    isFirstOrderInSession.current = false;
-                }}
-            />
-        )
+    if (view === 'status' && table) {
+        return <CustomerOrderStatusPage 
+                    table={table}
+                    onNavigateToMenu={() => {
+                        setView('menu');
+                        isFirstOrderInSession.current = false;
+                    }}
+                    isFirstOrderInSession={isFirstOrderInSession.current}
+                />
     }
 
     return (
@@ -548,7 +517,7 @@ const CustomerMenuPage: React.FC = () => {
                 </header>
 
                 <main className="flex-grow">
-                    <div className="sticky top-[120px] bg-[color:var(--color-glass-bg)] py-2 z-10 -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
+                    <div className="sticky top-[120px] bg-[color:var(--color-background)] py-2 z-10 -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
                         <div className="relative mb-3">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2" style={{color: 'var(--color-text-secondary)'}} size={20} />
                             <input
@@ -567,7 +536,7 @@ const CustomerMenuPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-6 mt-4">
                         {categories.filter(cat => selectedCategory === 'all' || selectedCategory === cat).map(category => {
                             const items = productsToDisplay.filter(p => p.category === category);
                             if (items.length === 0) return null;
@@ -599,7 +568,7 @@ const CustomerMenuPage: React.FC = () => {
             )}
             
             {/* Cart Modal */}
-            <div className={`modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 transition-opacity ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}></div>
+            <div className={`modal-backdrop fixed inset-0 bg-black bg-opacity-70 z-40 transition-opacity ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}></div>
             <div className={`fixed bottom-0 left-0 right-0 glass-card z-50 transition-transform transform ${isCartOpen ? 'translate-y-0' : 'translate-y-full'} max-h-[80vh] flex flex-col !rounded-b-none`}>
                 <header className="p-4 border-b flex justify-between items-center" style={{borderColor: 'var(--color-glass-border)'}}>
                     <h2 className="text-2xl font-bold font-display">O seu Pedido</h2>
@@ -636,11 +605,11 @@ const CustomerMenuPage: React.FC = () => {
                     </div>
                     <button
                         onClick={handleSubmitOrder}
-                        disabled={cart.length === 0 || orderState !== 'idle'}
+                        disabled={cart.length === 0 || isSubmitting}
                         className="w-full premium-gradient-button py-4 text-lg flex items-center justify-center gap-2"
                     >
-                        {orderState === 'sending' ? <Loader2 className="animate-spin" /> : <Send size={20} />}
-                        {orderState === 'sending' ? 'A Enviar...' : 'Enviar Pedido'}
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <Send size={20} />}
+                        {isSubmitting ? 'A Enviar...' : 'Enviar Pedido'}
                     </button>
                 </footer>
             </div>

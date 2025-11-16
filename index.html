@@ -80,8 +80,8 @@
       
       .glass-card {
         background: var(--color-glass-bg);
-        -webkit-backdrop-filter: blur(22px);
-        backdrop-filter: blur(22px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: var(--layout-card-border-radius);
         border: 0.5px solid var(--color-glass-border);
         box-shadow: var(--shadow-light), var(--shadow-inner);
@@ -148,12 +148,12 @@
       
       .secondary-button {
         background-color: rgba(0,0,0,0.2);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 0.5px solid var(--color-glass-border);
         border-radius: calc(var(--layout-card-border-radius) - 6px);
         color: var(--color-text-primary);
         font-weight: 500;
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
@@ -177,12 +177,12 @@
 
       .glass-input {
         background: rgba(0,0,0,0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 0.5px solid var(--color-glass-border);
         border-radius: calc(var(--layout-card-border-radius) - 8px);
         padding: 16px 20px;
         color: var(--color-text-primary);
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         font-size: 16px;
       }
