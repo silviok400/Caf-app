@@ -695,7 +695,15 @@ const SettingsManagement = memo(() => {
     const [isDeleteLastTableModalOpen, setIsDeleteLastTableModalOpen] = useState(false);
     const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
     const [qrCodeTable, setQrCodeTable] = useState<Table | null>(null);
+    const [copiedLink, setCopiedLink] = useState(false);
 
+    const shareUrl = `https://cafe-control-app.vercel.app/#/join/${currentCafe?.id}`;
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(shareUrl);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+    };
 
     const handleSaveCategory = async (newName: string, oldName?: string) => {
         if (oldName) {
@@ -795,6 +803,30 @@ const SettingsManagement = memo(() => {
                             As categorias são criadas e removidas automaticamente com base nos produtos que existem. Para adicionar uma nova categoria, crie um produto e atribua-lhe o novo nome. Para renomear, use o botão de editar.
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Share Link Section */}
+            <div className="glass-card p-6 mt-8">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><LinkIcon size={20} /> Partilhar Acesso ao Café</h3>
+                <p className="text-sm mb-4" style={{color: 'var(--color-text-secondary)'}}>
+                    Partilhe este link para permitir que outros funcionários ou dispositivos entrem diretamente neste café, sem precisar de o procurar na lista pública.
+                </p>
+                <div className="flex items-center gap-2 bg-black/20 p-2 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
+                    <input 
+                        type="text" 
+                        value={shareUrl} 
+                        readOnly 
+                        className="w-full bg-transparent p-2 text-sm font-mono" 
+                        style={{color: 'var(--color-text-secondary)'}} 
+                    />
+                    <button 
+                        onClick={handleCopyLink} 
+                        className="secondary-button font-semibold py-2 px-3 flex-shrink-0 flex items-center gap-1.5 text-sm"
+                    >
+                        {copiedLink ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                        {copiedLink ? 'Copiado!' : 'Copiar'}
+                    </button>
                 </div>
             </div>
 

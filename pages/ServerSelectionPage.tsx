@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Coffee, PlusCircle, AlertTriangle, KeyRound, Search, ScanLine, Loader2, Shield, Ticket, Crown } from 'lucide-react';
+import { Coffee, PlusCircle, AlertTriangle, KeyRound, Search, ScanLine, Loader2, Shield, Ticket, Crown, Share2, Check } from 'lucide-react';
 import QRScannerModal from '../components/QRScannerModal';
 
 const getAdminCafeIds = (): string[] => {
@@ -105,8 +105,41 @@ const ServerSelectionPage: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isAdminAccessOpen, setIsAdminAccessOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const adminCafeIds = useMemo(() => getAdminCafeIds(), []);
+
+  const handleShare = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    
+    const shareableUrl = 'https://cafe-control-app.vercel.app/';
+    const shareData = {
+      title: 'Café Control',
+      text: 'Experimente o Café Control, um sistema de gestão de cafés moderno!',
+      url: shareableUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        throw new Error('Share API not supported');
+      }
+    } catch (error) {
+      console.error('Share failed, falling back to clipboard:', error);
+      // Only fallback if the user didn't cancel the share dialog
+      if ((error as DOMException).name !== 'AbortError') {
+          navigator.clipboard.writeText(shareableUrl).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          });
+      }
+    } finally {
+        setIsSharing(false);
+    }
+  };
 
   const handleSelectCafe = (cafeId: string) => {
     selectCafe(cafeId);
@@ -206,7 +239,17 @@ const ServerSelectionPage: React.FC = () => {
         </div>
     )}
     
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 relative">
+        <button
+          onClick={handleShare}
+          disabled={isSharing}
+          className="absolute top-6 right-6 sm:top-8 sm:right-8 flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 glass-card !rounded-full glass-card-highlight disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Partilhar App"
+          title="Partilhar App"
+        >
+          {copied ? <Check size={24} className="text-green-400" /> : <Share2 size={24} />}
+        </button>
+
         <div className="w-full max-w-6xl mx-auto">
             <div className="text-center mb-10">
                 <Coffee className="h-20 w-20 text-amber-300 mx-auto icon-glow" />

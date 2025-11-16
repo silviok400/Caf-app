@@ -36,6 +36,7 @@ const CoffeeDetailsPage: React.FC = () => {
     const { selectCafe, currentCafe, coffees, isAppLoading, availableCafes } = useData();
     const [coffee, setCoffee] = useState<CoffeeType | null | undefined>(undefined);
     const [shareFeedback, setShareFeedback] = useState('');
+    const [isSharing, setIsSharing] = useState(false);
 
     useEffect(() => {
         if (cafeId && cafeId !== currentCafe?.id) {
@@ -71,24 +72,36 @@ const CoffeeDetailsPage: React.FC = () => {
     };
     
     const handleShare = async () => {
-        if (!coffee) return;
+        if (!coffee || isSharing) return;
+        setIsSharing(true);
+
+        const shareableUrl = `https://cafe-control-app.vercel.app/${window.location.hash}`;
         const shareData = {
             title: `Café Especial: ${coffee.name}`,
             text: `Veja os detalhes sobre o ${coffee.name} no ${currentCafe?.name}!`,
-            url: window.location.href,
+            url: shareableUrl,
         };
         try {
             if (navigator.share) {
                 await navigator.share(shareData);
             } else {
-                await navigator.clipboard.writeText(window.location.href);
-                setShareFeedback('Link copiado para a área de transferência!');
-                setTimeout(() => setShareFeedback(''), 2000);
+                throw new Error('Share API not supported');
             }
         } catch (error) {
-            console.error("Error sharing:", error);
-            setShareFeedback('Falha ao partilhar.');
-            setTimeout(() => setShareFeedback(''), 2000);
+            console.error("Share failed, falling back to clipboard:", error);
+            // Only fallback if the user didn't cancel the share dialog
+            if ((error as DOMException).name !== 'AbortError') {
+                navigator.clipboard.writeText(shareableUrl).then(() => {
+                    setShareFeedback('Link copiado para a área de transferência!');
+                    setTimeout(() => setShareFeedback(''), 2000);
+                }).catch(copyError => {
+                    console.error('Clipboard write failed:', copyError);
+                    setShareFeedback('Falha ao partilhar ou copiar.');
+                    setTimeout(() => setShareFeedback(''), 2000);
+                });
+            }
+        } finally {
+            setIsSharing(false);
         }
     };
 
@@ -128,6 +141,7 @@ const CoffeeDetailsPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-4">
                     <button
                         onClick={handleShare}
+                        disabled={isSharing}
                         className="w-full secondary-button font-bold py-3 text-lg flex items-center justify-center gap-3"
                     >
                         <Share2 size={22} />
