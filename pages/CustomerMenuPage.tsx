@@ -540,7 +540,7 @@ const CustomerMenuPage: React.FC = () => {
     return (
         <div ref={menuRef} className="min-h-screen w-full flex flex-col items-center p-2 sm:p-4 pb-28">
             <div className="w-full max-w-3xl flex-grow flex flex-col">
-                <header className="py-4 sticky top-0 bg-transparent z-20 w-full mb-4">
+                <header className="py-4 sticky top-0 bg-[var(--color-background)] z-20 w-full mb-4">
                     <div className="glass-card p-4">
                         <h1 className="text-3xl font-bold font-display text-center">{currentCafe?.name || 'Cardápio'}</h1>
                         <p className="text-center font-semibold" style={{color: 'var(--color-secondary)'}}>A pedir para: {table!.name}</p>
@@ -548,7 +548,7 @@ const CustomerMenuPage: React.FC = () => {
                 </header>
 
                 <main className="flex-grow">
-                    <div className="sticky top-[120px] bg-black/20 backdrop-blur-sm py-2 z-10 -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
+                    <div className="sticky top-[120px] bg-[color:var(--color-glass-bg)] py-2 z-10 -mx-2 sm:-mx-4 px-2 sm:px-4 rounded-xl">
                         <div className="relative mb-3">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2" style={{color: 'var(--color-text-secondary)'}} size={20} />
                             <input
