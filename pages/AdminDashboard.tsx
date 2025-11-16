@@ -3,78 +3,40 @@ import { useData, defaultTheme } from '../contexts/DataContext';
 import { Product, Order, OrderStatus, Staff, UserRole, Cafe, ThemeSettings, Table, CreationCode, Feedback } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import TableQRCodeModal from '../components/TableQRCodeModal';
 // Fix: Import 'X' and 'Coffee' icons from 'lucide-react'.
 import { PlusCircle, Edit, Trash2, Download, Users, Package, BarChart2, Ban, ShieldAlert, SlidersHorizontal, Search, Hash, AlertTriangle, Paintbrush, Undo, Type, Image as ImageIcon, KeyRound, Phone, Shield, TrendingUp, DollarSign, ShoppingCart, BarChartHorizontal, QrCode, Info, Link as LinkIcon, Palette, Droplet, Copy, Check, Clock, Coffee, Loader2, Server, EyeOff, Eye, Ticket, MessageSquare, Star, User as UserIcon, Crown, MonitorPlay, X } from 'lucide-react';
-import TableQRCodeModal from '../components/TableQRCodeModal';
 
 const CafePreviewModal: React.FC<{
   cafe: Cafe;
   onClose: () => void;
 }> = ({ cafe, onClose }) => {
-    const [view, setView] = useState<'entry' | 'menu'>('entry');
-    const [firstTable, setFirstTable] = useState<Table | null>(null);
-    const [isLoadingPreview, setIsLoadingPreview] = useState(true);
-
     const baseUrl = window.location.href.split('#')[0];
+    const previewUrl = `${baseUrl}#/join/${cafe.id}`;
 
     useEffect(() => {
         document.body.classList.add('modal-open');
-        const fetchFirstTable = async () => {
-            setIsLoadingPreview(true);
-            const { data, error } = await supabase
-                .from('tables')
-                .select('id')
-                .eq('cafe_id', cafe.id)
-                .eq('is_hidden', false)
-                .order('name', { ascending: true })
-                .limit(1)
-                .single();
-            
-            if (data) {
-                setFirstTable(data as Table);
-            } else {
-                console.warn(`No visible tables found for cafe ${cafe.name}`, error);
-            }
-            setIsLoadingPreview(false);
-        };
-
-        fetchFirstTable();
         return () => {
             document.body.classList.remove('modal-open');
         }
-    }, [cafe.id, cafe.name]);
-
-    const previewUrl = useMemo(() => {
-        if (view === 'menu' && firstTable) {
-            return `${baseUrl}#/menu/${cafe.id}/${firstTable.id}`;
-        }
-        return `${baseUrl}#/join/${cafe.id}`;
-    }, [view, cafe.id, firstTable, baseUrl]);
+    }, []);
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
         <div className="glass-card w-full max-w-5xl h-[95vh] flex flex-col">
             <header className="flex-shrink-0 flex items-center justify-between p-4 border-b" style={{borderColor: 'var(--color-glass-border)'}}>
                 <h3 className="text-xl font-bold font-display flex items-center gap-2"><MonitorPlay size={24}/> Pré-visualização: {cafe.name}</h3>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setView('entry')} disabled={view === 'entry'} className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${view === 'entry' ? 'bg-amber-500/80 text-white' : 'secondary-button'}`}>Tela de Entrada</button>
-                    <button onClick={() => setView('menu')} disabled={view === 'menu' || !firstTable} className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${view === 'menu' ? 'bg-amber-500/80 text-white' : 'secondary-button'}`} title={!firstTable ? "Nenhuma mesa visível para pré-visualizar o cardápio" : ""}>Cardápio Cliente</button>
-                </div>
                 <button onClick={onClose} className="p-2 rounded-full hover:bg-black/20" style={{color: 'var(--color-text-secondary)'}}><X/></button>
             </header>
             <main className="flex-grow p-4 flex items-center justify-center bg-black/20 overflow-auto">
-              {isLoadingPreview ? (
-                  <Loader2 className="animate-spin text-amber-300" size={48} />
-              ) : (
-                <div className="w-[400px] h-[820px] bg-stone-900 rounded-[40px] shadow-2xl p-2 border-4 border-stone-700 relative flex-shrink-0 my-4">
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 h-6 w-32 bg-stone-900 rounded-b-lg z-10"></div>
-                  <iframe 
-                      src={previewUrl}
-                      className="w-full h-full border-0 rounded-[32px] bg-white"
-                      title={`Preview of ${cafe.name}`}
-                  />
-                </div>
-              )}
+              <div className="w-[400px] h-[820px] bg-stone-900 rounded-[40px] shadow-2xl p-2 border-4 border-stone-700 relative flex-shrink-0 my-4">
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 h-6 w-32 bg-stone-900 rounded-b-lg z-10"></div>
+                <iframe 
+                    src={previewUrl}
+                    className="w-full h-full border-0 rounded-[32px] bg-white"
+                    title={`Preview of ${cafe.name}`}
+                />
+              </div>
             </main>
         </div>
       </div>
@@ -1063,8 +1025,8 @@ const SettingsManagement = memo(() => {
     const [editingCategory, setEditingCategory] = useState<string | null>(null);
     const [isDeleteLastTableModalOpen, setIsDeleteLastTableModalOpen] = useState(false);
     const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
-    const [qrCodeTable, setQrCodeTable] = useState<Table | null>(null);
     const [copiedLink, setCopiedLink] = useState(false);
+    const [qrCodeTable, setQrCodeTable] = useState<Table | null>(null);
 
     const baseUrl = window.location.href.split('#')[0];
     const shareUrl = `${baseUrl}#/join/${currentCafe?.id}`;
@@ -1120,8 +1082,8 @@ const SettingsManagement = memo(() => {
                                     {table.name}
                                 </span>
                                 <div className="flex items-center gap-3">
-                                    <button onClick={() => setQrCodeTable(table)} className="text-stone-300 hover:text-white" title="Mostrar QR Code">
-                                      <QrCode size={20} />
+                                     <button onClick={() => setQrCodeTable(table)} className="text-amber-300 hover:text-amber-200" title="Mostrar QR Code para Pedidos">
+                                        <QrCode size={20}/>
                                     </button>
                                     <button
                                         role="switch"
@@ -1245,6 +1207,15 @@ const SettingsManagement = memo(() => {
                     </div>
                 </div>
             </div>
+            
+            {qrCodeTable && currentCafe && (
+                <TableQRCodeModal 
+                    table={qrCodeTable} 
+                    cafe={currentCafe} 
+                    theme={theme} 
+                    onClose={() => setQrCodeTable(null)} 
+                />
+            )}
 
             {currentCafe && (
                 <DeleteServerConfirmationModal
@@ -1271,14 +1242,6 @@ const SettingsManagement = memo(() => {
                 message={`Tem a certeza que quer ocultar a última mesa visível? A mesa com o número mais alto será ocultada. Poderá torná-la visível novamente nesta tela.`}
             />
 
-            {qrCodeTable && currentCafe && (
-                <TableQRCodeModal
-                    table={qrCodeTable}
-                    cafe={currentCafe}
-                    theme={theme}
-                    onClose={() => setQrCodeTable(null)}
-                />
-            )}
         </div>
     );
 });
@@ -1434,83 +1397,76 @@ const AnalyticsDashboard = memo(() => {
                             <p className="text-4xl font-bold font-display mt-2" style={{color: 'var(--color-secondary)'}}>{keyMetrics.totalOrders}</p>
                         </div>
                         <div className="glass-card p-6">
-                            <h3 className="text-sm font-semibold uppercase flex items-center gap-2" style={{color: 'var(--color-text-secondary)'}}><Hash size={16}/>Valor Médio/Pedido</h3>
+                            <h3 className="text-sm font-semibold uppercase flex items-center gap-2" style={{color: 'var(--color-text-secondary)'}}><Hash size={16}/>Média por Pedido</h3>
                             <p className="text-4xl font-bold font-display mt-2" style={{color: 'var(--color-secondary)'}}>€{keyMetrics.averageOrderValue.toFixed(2)}</p>
                         </div>
                     </div>
 
-                    <div className="glass-card p-3 sm:p-6">
-                        <h3 className="text-xl font-bold mb-4">Estatísticas de Vendas por Hora</h3>
-                        <div className="w-full pb-2 overflow-x-hidden">
-                            <div className="h-48 flex items-end gap-px sm:gap-1">
-                                {hourlySalesData.hours.map((h, index) => (
-                                    <div key={h.hour} className="flex-1 min-w-0 flex flex-col items-center justify-end h-full group">
-                                        <div className="text-sm font-bold text-white bg-stone-800 px-2 py-1 rounded-md mb-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                            €{h.revenue.toFixed(2)}
-                                        </div>
-                                        <div 
-                                            className="w-full bg-stone-200 rounded-t-md hover:opacity-80 transition-opacity"
-                                            style={{ 
-                                                height: `${(h.revenue / hourlySalesData.maxRevenue) * 100}%`,
-                                                backgroundColor: theme.colors.secondary
-                                            }}
-                                        ></div>
-                                        <div className={`text-xs mt-1 whitespace-nowrap ${index % 3 !== 0 ? 'hidden md:block' : 'block'}`} style={{color: 'var(--color-text-secondary)'}}>
-                                            {h.hour}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                    <div className="glass-card p-6">
+                        <h3 className="text-xl font-bold font-display mb-4">Vendas por Hora</h3>
+                        <div className="flex items-end gap-2 sm:gap-3 h-64 border-b-2" style={{borderColor: 'var(--color-glass-border)'}}>
+                            {hourlySalesData.hours.map((data) => (
+                                <div key={data.hour} className="flex-1 flex flex-col items-center justify-end group">
+                                    <div className="text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity mb-1">€{data.revenue.toFixed(0)}</div>
+                                    <div 
+                                        className="w-full rounded-t-lg transition-all duration-300" 
+                                        style={{ 
+                                            height: `${(data.revenue / hourlySalesData.maxRevenue) * 100}%`,
+                                            minHeight: '4px',
+                                            background: `linear-gradient(to top, ${theme.colors.secondary}, color-mix(in srgb, ${theme.colors.secondary} 50%, ${theme.colors.primary}))`
+                                        }}
+                                        title={`${data.hour}: €${data.revenue.toFixed(2)}`}
+                                    />
+                                    <div className="text-xs mt-2" style={{color: 'var(--color-text-secondary)'}}>{data.hour}</div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="glass-card p-6">
-                            <h3 className="text-xl font-bold mb-4">Top 5 - Mais Vendidos (Quantidade)</h3>
+                            <h3 className="text-xl font-bold font-display mb-4 flex items-center gap-2"><TrendingUp size={20}/>Mais Vendidos (Quantidade)</h3>
                             <ul className="space-y-3">
-                                {productPerformance.bestSellers.map(p => (
-                                    <li key={p.name} className="flex justify-between items-center text-sm gap-2">
-                                        <span className="font-medium break-words min-w-0">{p.name}</span>
-                                        <span className="font-bold text-white px-2 py-0.5 rounded-full text-xs whitespace-nowrap" style={{backgroundColor: 'var(--color-primary)'}}>{p.quantity}</span>
+                                {productPerformance.bestSellers.map((prod, index) => (
+                                    <li key={prod.name} className="flex items-center justify-between text-sm gap-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span className="font-bold w-6 text-center">{index + 1}</span>
+                                            <span className="font-semibold truncate">{prod.name}</span>
+                                        </div>
+                                        <span className="font-bold flex-shrink-0">{prod.quantity} un.</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
-                        <div className="glass-card p-6">
-                             <h3 className="text-xl font-bold mb-4">Top 5 - Mais Rentáveis (Receita)</h3>
+                         <div className="glass-card p-6">
+                            <h3 className="text-xl font-bold font-display mb-4 flex items-center gap-2"><DollarSign size={20}/>Mais Rentáveis (Receita)</h3>
                              <ul className="space-y-3">
-                                {productPerformance.mostProfitable.map(p => (
-                                    <li key={p.name} className="flex justify-between items-center text-sm gap-2">
-                                        <span className="font-medium break-words min-w-0">{p.name}</span>
-                                        <span className="font-bold text-white px-2 py-0.5 rounded-md whitespace-nowrap" style={{backgroundColor: 'var(--color-secondary)'}}>€{p.revenue.toFixed(2)}</span>
+                                {productPerformance.mostProfitable.map((prod, index) => (
+                                     <li key={prod.name} className="flex items-center justify-between text-sm gap-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span className="font-bold w-6 text-center">{index + 1}</span>
+                                            <span className="font-semibold truncate">{prod.name}</span>
+                                        </div>
+                                        <span className="font-bold flex-shrink-0">€{prod.revenue.toFixed(2)}</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
                     </div>
 
-                    <div className="glass-card overflow-hidden">
-                        <h3 className="text-xl font-bold p-6">Desempenho dos Funcionários</h3>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead className="bg-black/20">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Funcionário</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Pedidos Processados</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Receita Gerada</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
-                                    {staffPerformance.map(s => (
-                                        <tr key={s.name}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{s.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>{s.orderCount}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">€{s.revenue.toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div className="glass-card p-6">
+                        <h3 className="text-xl font-bold font-display mb-4 flex items-center gap-2"><Users size={20}/>Desempenho dos Funcionários</h3>
+                        <ul className="space-y-3">
+                             {staffPerformance.map(s => (
+                                <li key={s.name} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-black/20 rounded-lg">
+                                    <span className="font-semibold text-base">{s.name}</span>
+                                    <div className="flex items-center gap-4 text-sm w-full sm:w-auto justify-between">
+                                        <span className="font-medium">Pedidos: <strong className="font-bold">{s.orderCount}</strong></span>
+                                        <span className="font-medium">Receita Gerada: <strong className="font-bold">€{s.revenue.toFixed(2)}</strong></span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 </>
             )}
@@ -1518,130 +1474,23 @@ const AnalyticsDashboard = memo(() => {
     );
 });
 
-const ProductManagement = memo(() => {
-    const { products, addProduct, updateProduct, deleteProduct } = useData();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [deleteError, setDeleteError] = useState('');
 
-    const handleOpenModal = (product: Product | null = null) => {
-        setEditingProduct(product);
-        setIsModalOpen(true);
-    };
+const AdminDashboard: React.FC = () => {
+    const { isAdmCafe } = useData();
+    return isAdmCafe ? <PlatformAdminDashboard /> : <CafeAdminDashboard />;
+};
 
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingProduct(null);
-    };
-
-    const handleSave = async (productData: Omit<Product, 'id'> & { id?: string }) => {
-        if (productData.id) {
-            await updateProduct(productData as Product);
-        } else {
-            await addProduct(productData);
-        }
-        handleCloseModal();
-    };
-    
-    const handleConfirmDelete = async () => {
-        if (productToDelete) {
-            try {
-                await deleteProduct(productToDelete.id);
-                setProductToDelete(null);
-                setDeleteError('');
-            } catch (err) {
-                console.error("Failed to delete product:", err);
-                setDeleteError(`Não foi possível apagar o produto. (${(err as Error).message})`);
-                setProductToDelete(null);
-            }
-        }
-    };
-
-    const filteredProducts = products
-      .filter(product => 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    return (
-        <div>
-            {deleteError && (
-                <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 mb-4" role="alert">
-                    <p className="font-bold">Erro de Exclusão</p>
-                    <p>{deleteError}</p>
-                </div>
-            )}
-            <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
-                <div className="relative">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Pesquisar produtos..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full max-w-sm glass-input !py-2 pl-10 pr-4 text-sm"
-                    />
-                </div>
-                <button onClick={() => handleOpenModal()} className="premium-gradient-button !bg-green-600 hover:!bg-green-700 py-2 px-4 flex items-center gap-2">
-                    <PlusCircle size={20}/> Adicionar Produto
-                </button>
-            </div>
-            <div className="glass-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="bg-black/20">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Nome</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Categoria</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Preço</th>
-                                <th scope="col" className="relative px-6 py-3"><span className="sr-only">Ações</span></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
-                            {filteredProducts.length > 0 ? (
-                                filteredProducts.map(product => (
-                                    <tr key={product.id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{product.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>{product.category}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>€{product.price.toFixed(2)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                                            <button onClick={() => handleOpenModal(product)} className="text-indigo-400 hover:text-indigo-300"><Edit size={20}/></button>
-                                            <button onClick={() => setProductToDelete(product)} className="text-red-400 hover:text-red-300"><Trash2 size={20}/></button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center" style={{color: 'var(--color-text-secondary)'}}>
-                                        Nenhum produto encontrado.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {isModalOpen && <ProductModal product={editingProduct} onSave={handleSave} onClose={handleCloseModal} />}
-            <ConfirmationModal
-                isOpen={!!productToDelete}
-                onClose={() => setProductToDelete(null)}
-                onConfirm={handleConfirmDelete}
-                title="Apagar Produto"
-                message={`Tem a certeza que quer apagar o produto "${productToDelete?.name}"? Esta ação não pode ser desfeita.`}
-            />
-        </div>
-    );
-});
-
-const ProductModal: React.FC<{product: Product | null, onSave: (data: any) => Promise<void>, onClose: () => void}> = memo(({product, onSave, onClose}) => {
-    const { categories } = useData();
-    const [name, setName] = useState(product?.name || '');
-    const [category, setCategory] = useState(product?.category || '');
-    const [price, setPrice] = useState(product?.price || 0);
+// Fix: Add StaffModal component for creating/editing staff.
+const StaffModal: React.FC<{
+  staffMember: Staff | null;
+  onClose: () => void;
+  onSave: (staffMember: Omit<Staff, 'id' | 'cafe_id'> | Staff) => void;
+}> = memo(({ staffMember, onClose, onSave }) => {
+    const [name, setName] = useState(staffMember?.name || '');
+    const [role, setRole] = useState<UserRole>(staffMember?.role || 'waiter');
+    const [pin, setPin] = useState(staffMember?.pin || '');
     const [error, setError] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+    const { staff } = useData();
 
     useEffect(() => {
         document.body.classList.add('modal-open');
@@ -1650,94 +1499,24 @@ const ProductModal: React.FC<{product: Product | null, onSave: (data: any) => Pr
         };
     }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!name || !category || price <= 0) {
-            setError('Todos os campos são obrigatórios e o preço deve ser positivo.');
-            return;
+        if (!name.trim()) {
+            return setError('O nome é obrigatório.');
         }
-        setIsSaving(true);
-        try {
-            await onSave({ id: product?.id, name, category, price: Number(price) });
-        } catch (err) {
-            setError(`Falha ao guardar: ${(err as Error).message}`);
-        } finally {
-            setIsSaving(false);
+        if (!/^\d{6}$/.test(pin)) {
+            return setError('O PIN deve ter exatamente 6 dígitos numéricos.');
         }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="glass-card w-full max-w-md p-6">
-                <h3 className="text-2xl font-bold font-display mb-4">{product ? 'Editar Produto' : 'Novo Produto'}</h3>
-                <form onSubmit={handleSubmit}>
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium mb-1" style={{color: 'var(--color-text-secondary)'}}>Nome do Produto</label>
-                            <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} className="w-full glass-input"/>
-                        </div>
-                        <div>
-                            <label htmlFor="category" className="block text-sm font-medium mb-1" style={{color: 'var(--color-text-secondary)'}}>Categoria</label>
-                            <input 
-                                list="category-options"
-                                id="category" 
-                                value={category} 
-                                onChange={e => setCategory(e.target.value)} 
-                                className="w-full glass-input"
-                            />
-                            <datalist id="category-options">
-                                {categories.map(cat => (
-                                    <option key={cat} value={cat} />
-                                ))}
-                            </datalist>
-                        </div>
-                        <div>
-                            <label htmlFor="price" className="block text-sm font-medium mb-1" style={{color: 'var(--color-text-secondary)'}}>Preço (€)</label>
-                            <input type="number" id="price" value={price} onChange={e => setPrice(parseFloat(e.target.value))} step="0.01" min="0" className="w-full glass-input"/>
-                        </div>
-                    </div>
-                    {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-                    <div className="mt-6 flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="secondary-button font-bold py-2 px-4">Cancelar</button>
-                        <button type="submit" className="premium-gradient-button py-2 px-4" disabled={isSaving}>
-                            {isSaving ? 'A guardar...' : 'Guardar'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-});
-
-const StaffModal: React.FC<{staffMember: Staff | null, onSave: (data: any) => Promise<void>, onClose: () => void}> = memo(({staffMember, onSave, onClose}) => {
-    const [name, setName] = useState(staffMember?.name || '');
-    const [pin, setPin] = useState(staffMember?.pin || '');
-    const [role, setRole] = useState<UserRole>(staffMember?.role || 'waiter');
-    const [error, setError] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-
-     useEffect(() => {
-        document.body.classList.add('modal-open');
-        return () => {
-            document.body.classList.remove('modal-open');
-        };
-    }, []);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        if (!name || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
-            setError('Nome é obrigatório e o PIN deve ter 6 dígitos numéricos.');
-            return;
+        if (staff.some(s => s.pin === pin && s.id !== staffMember?.id)) {
+            return setError('Este PIN já está em uso.');
         }
-        setIsSaving(true);
-        try {
-            await onSave({ id: staffMember?.id, name, pin, role });
-        } catch (err) {
-            setError(`Falha ao guardar: ${(err as Error).message}`);
-        } finally {
-            setIsSaving(false);
+        
+        const staffData = { name, role, pin };
+        if (staffMember) {
+            onSave({ ...staffMember, ...staffData });
+        } else {
+            onSave(staffData);
         }
     };
 
@@ -1748,27 +1527,26 @@ const StaffModal: React.FC<{staffMember: Staff | null, onSave: (data: any) => Pr
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="staff-name" className="block text-sm font-medium mb-1" style={{color: 'var(--color-text-secondary)'}}>Nome</label>
-                            <input type="text" id="staff-name" value={name} onChange={e => setName(e.target.value)} className="w-full glass-input"/>
+                            <label htmlFor="staff-name" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>Nome</label>
+                            <input type="text" id="staff-name" value={name} onChange={e => setName(e.target.value)} className="w-full glass-input" autoFocus />
                         </div>
-                         <div>
-                            <label htmlFor="staff-pin" className="block text-sm font-medium mb-1" style={{color: 'var(--color-text-secondary)'}}>PIN (6 dígitos)</label>
-                            <input type="text" id="staff-pin" value={pin} onChange={e => setPin(e.target.value)} maxLength={6} className="w-full glass-input"/>
-                        </div>
-                        <div>
-                            <label htmlFor="staff-role" className="block text-sm font-medium mb-1" style={{color: 'var(--color-text-secondary)'}}>Função</label>
-                            <select id="staff-role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="w-full glass-input" disabled={staffMember?.role === 'admin'}>
-                                <option value="waiter" style={{backgroundColor: '#332924', color: 'white'}}>Funcionário</option>
-                                <option value="kitchen" style={{backgroundColor: '#332924', color: 'white'}}>Cozinha</option>
+                            <div>
+                            <label htmlFor="staff-role" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>Função</label>
+                            <select id="staff-role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="w-full glass-input">
+                                <option value="waiter" style={{backgroundColor: '#332924'}}>Empregado de Mesa</option>
+                                <option value="kitchen" style={{backgroundColor: '#332924'}}>Cozinha</option>
+                                <option value="admin" style={{backgroundColor: '#332924'}}>Gerente</option>
                             </select>
                         </div>
+                        <div>
+                            <label htmlFor="staff-pin" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>PIN (6 dígitos)</label>
+                            <input type="password" id="staff-pin" value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} maxLength={6} className="w-full glass-input" />
+                        </div>
                     </div>
-                    {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+                        {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
                     <div className="mt-6 flex justify-end gap-4">
                         <button type="button" onClick={onClose} className="secondary-button font-bold py-2 px-4">Cancelar</button>
-                        <button type="submit" className="premium-gradient-button py-2 px-4" disabled={isSaving}>
-                            {isSaving ? 'A guardar...' : 'Guardar'}
-                        </button>
+                        <button type="submit" className="premium-gradient-button py-2 px-4">Guardar</button>
                     </div>
                 </form>
             </div>
@@ -1776,12 +1554,12 @@ const StaffModal: React.FC<{staffMember: Staff | null, onSave: (data: any) => Pr
     );
 });
 
+// Fix: Add StaffManagement component to render the staff management UI.
 const StaffManagement = memo(() => {
     const { staff, addStaff, updateStaff, deleteStaff } = useData();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
     const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
-    const [deleteError, setDeleteError] = useState('');
 
     const handleOpenModal = (staffMember: Staff | null = null) => {
         setEditingStaff(staffMember);
@@ -1793,683 +1571,402 @@ const StaffManagement = memo(() => {
         setEditingStaff(null);
     };
 
-    const handleSave = async (staffData: Omit<Staff, 'id'> & { id?: string }) => {
-        if (staffData.id) {
-            await updateStaff(staffData as Staff);
+    const handleSaveStaff = async (staffData: Omit<Staff, 'id' | 'cafe_id'> | Staff) => {
+        if ('id' in staffData) {
+            await updateStaff(staffData);
         } else {
             await addStaff(staffData);
         }
         handleCloseModal();
     };
-    
-    const handleConfirmDelete = async () => {
+
+    const handleDeleteStaff = async () => {
         if (staffToDelete) {
-             try {
-                await deleteStaff(staffToDelete.id);
-                setStaffToDelete(null);
-                setDeleteError('');
-            } catch (err) {
-                console.error("Failed to delete staff:", err);
-                setDeleteError(`Não foi possível apagar o funcionário. (${(err as Error).message})`);
-                setStaffToDelete(null);
-            }
+            await deleteStaff(staffToDelete.id);
+            setStaffToDelete(null);
         }
-    }
-
-    const roleNames: Record<UserRole, string> = {
-        waiter: 'Funcionário',
-        kitchen: 'Cozinha',
-        admin: 'Gerente'
-    };
-
-    return (
-         <div>
-            {deleteError && (
-                <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 p-4 mb-4" role="alert">
-                    <p className="font-bold">Erro de Exclusão</p>
-                    <p>{deleteError}</p>
-                </div>
-            )}
-            <div className="flex justify-end mb-4">
-                <button onClick={() => handleOpenModal()} className="premium-gradient-button !bg-green-600 hover:!bg-green-700 py-2 px-4 flex items-center gap-2">
-                    <PlusCircle size={20}/> Adicionar Funcionário
-                </button>
-            </div>
-            <div className="glass-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="bg-black/20">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Nome</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Função</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>PIN</th>
-                                <th scope="col" className="relative px-6 py-3"><span className="sr-only">Ações</span></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
-                            {staff.sort((a,b) => a.name.localeCompare(b.name)).map(s => (
-                                <tr key={s.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{s.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>{roleNames[s.role]}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{color: 'var(--color-text-secondary)'}}>{s.pin}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                                        {s.role !== 'admin' && (
-                                            <>
-                                                <button onClick={() => handleOpenModal(s)} className="text-indigo-400 hover:text-indigo-300"><Edit size={20}/></button>
-                                                <button onClick={() => setStaffToDelete(s)} className="text-red-400 hover:text-red-300"><Trash2 size={20}/></button>
-                                            </>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {isModalOpen && <StaffModal staffMember={editingStaff} onSave={handleSave} onClose={handleCloseModal} />}
-            <ConfirmationModal
-                isOpen={!!staffToDelete}
-                onClose={() => setStaffToDelete(null)}
-                onConfirm={handleConfirmDelete}
-                title="Apagar Funcionário"
-                message={`Tem a certeza que quer apagar o funcionário "${staffToDelete?.name}"? Esta ação não pode ser desfeita.`}
-            />
-        </div>
-    );
-});
-
-const Reports = memo(() => {
-    const { orders, staff, updateOrderStatus, theme, tables } = useData();
-    const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
-    const [staffSearch, setStaffSearch] = useState('');
-    const [orderIdSearch, setOrderIdSearch] = useState('');
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const todaysOrders = useMemo(() => {
-        const lowercasedStaffSearch = staffSearch.toLowerCase().trim();
-        const trimmedOrderIdSearch = orderIdSearch.trim();
-        
-        return orders
-            .filter(o => {
-                const isToday = o.created_at >= today;
-                const isNotCancelled = o.status !== OrderStatus.CANCELLED;
-                
-                if (!isToday || !isNotCancelled) {
-                    return false;
-                }
-
-                if (trimmedOrderIdSearch && !o.id.includes(trimmedOrderIdSearch)) {
-                    return false;
-                }
-                
-                if (lowercasedStaffSearch) {
-                    const staffMember = staff.find(s => s.id === o.staff_id);
-                    const staffName = staffMember ? staffMember.name.toLowerCase() : '';
-                    if (!staffName.includes(lowercasedStaffSearch)) {
-                        return false;
-                    }
-                }
-
-                return true;
-            })
-            .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
-    }, [orders, today, staffSearch, orderIdSearch, staff]);
-
-    const totalRevenue = useMemo(() => {
-        return todaysOrders
-            .filter(o => o.status === OrderStatus.PAID || o.status === OrderStatus.SERVED)
-            .reduce((total, order) => {
-            return total + order.items.reduce((orderTotal, item) => orderTotal + (item.productPrice * item.quantity), 0);
-        }, 0);
-    }, [todaysOrders]);
-
-    const exportToCSV = () => {
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "OrderID,TableID,TableName,StaffID,StaffName,Status,Total,DateTime\n";
-
-        todaysOrders.forEach(order => {
-            const staffName = staff.find(s => s.id === order.staff_id)?.name || 'N/A';
-            const tableName = tables.find(t => t.id === order.table_id)?.name || 'N/A';
-            const orderTotal = order.items.reduce((total, item) => total + item.productPrice * item.quantity, 0);
-            const row = [order.id, order.table_id, `"${tableName}"`, order.staff_id, `"${staffName}"`, order.status, orderTotal.toFixed(2), order.created_at.toISOString()].join(",");
-            csvContent += row + "\r\n";
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `relatorio_cafe_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    const handleConfirmCancel = async () => {
-        if (orderToCancel) {
-            await updateOrderStatus(orderToCancel.id, OrderStatus.CANCELLED);
-            setOrderToCancel(null);
-        }
-    };
-    
-    const getStatusInfo = (status: OrderStatus) => {
-      const statusKey = (Object.keys(OrderStatus) as Array<keyof typeof OrderStatus>).find(key => OrderStatus[key] === status)?.toLowerCase() || 'cancelled';
-      const color = theme.statusColors[statusKey as keyof typeof theme.statusColors] || theme.statusColors.cancelled;
-      return {
-          text: status,
-          bgColor: `color-mix(in srgb, ${color} 30%, transparent)`,
-          textColor: `color-mix(in srgb, ${color} 80%, white)`
-      };
     };
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                <div className="glass-card p-4 text-center">
-                    <h3 className="text-sm font-semibold uppercase" style={{color: 'var(--color-text-secondary)'}}>Receita Total de Hoje</h3>
-                    <p className="text-3xl font-bold font-display" style={{color: 'var(--color-secondary)'}}>€{totalRevenue.toFixed(2)}</p>
-                </div>
-                <button onClick={exportToCSV} className="premium-gradient-button !bg-blue-600 hover:!bg-blue-700 py-2 px-4 flex items-center gap-2">
-                    <Download size={20}/> Exportar CSV
+            <div className="flex justify-end mb-6">
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="premium-gradient-button py-2 px-4 flex items-center gap-2"
+                >
+                    <PlusCircle size={20} /> Adicionar Funcionário
                 </button>
             </div>
-            
-            <div className="mb-4 flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-grow">
-                    <Users size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                    <input type="text" value={staffSearch} onChange={e => setStaffSearch(e.target.value)} placeholder="Filtrar por funcionário..." className="w-full glass-input !py-2 pl-10 pr-4 text-sm"/>
-                </div>
-                <div className="relative flex-grow">
-                    <Hash size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                    <input type="text" value={orderIdSearch} onChange={e => setOrderIdSearch(e.target.value)} placeholder="Filtrar por ID do pedido..." className="w-full glass-input !py-2 pl-10 pr-4 text-sm"/>
-                </div>
-            </div>
-
-            <div className="glass-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="bg-black/20">
-                             <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>ID</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Mesa</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Funcionário</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Status</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Total</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Hora</th>
-                                <th scope="col" className="relative px-6 py-3"><span className="sr-only">Ações</span></th>
+            <div className="scrollable-content overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left">
+                    <thead>
+                        <tr className="border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                            <th className="p-3">Nome</th>
+                            <th className="p-3">Função</th>
+                            <th className="p-3">PIN</th>
+                            <th className="p-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {staff.map(member => (
+                            <tr key={member.id} className="border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                                <td className="p-3 font-semibold">{member.name}</td>
+                                <td className="p-3">{member.role}</td>
+                                <td className="p-3 font-mono">******</td>
+                                <td className="p-3">
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => handleOpenModal(member)} className="p-2 rounded-md hover:bg-black/20" title="Editar"><Edit size={18}/></button>
+                                        {member.role !== 'admin' && ( // Prevent admin deletion
+                                            <button onClick={() => setStaffToDelete(member)} className="p-2 text-red-400 rounded-md hover:bg-red-900/40" title="Apagar"><Trash2 size={18}/></button>
+                                        )}
+                                    </div>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
-                            {todaysOrders.map(order => {
-                                const orderTotal = order.items.reduce((total, item) => total + item.productPrice * item.quantity, 0);
-                                const tableName = tables.find(t => t.id === order.table_id)?.name || 'Desconhecida';
-                                const statusInfo = getStatusInfo(order.status);
-                                return (
-                                    <tr key={order.id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-stone-400">{order.id.slice(-6)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{tableName}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>{staff.find(s => s.id === order.staff_id)?.name || 'N/A'}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <span 
-                                                className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                                                style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.textColor }}
-                                            >
-                                                {statusInfo.text}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>€{orderTotal.toFixed(2)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{color: 'var(--color-text-secondary)'}}>{order.created_at.toLocaleTimeString()}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                             {order.status !== OrderStatus.PAID && order.status !== OrderStatus.CANCELLED && (
-                                                <button onClick={() => setOrderToCancel(order)} className="text-red-400 hover:text-red-300 flex items-center gap-1"><Ban size={14}/> Cancelar</button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                        ))}
+                    </tbody>
+                </table>
             </div>
+            {isModalOpen && (
+                <StaffModal
+                    staffMember={editingStaff}
+                    onClose={handleCloseModal}
+                    onSave={handleSaveStaff}
+                />
+            )}
             <ConfirmationModal
-                isOpen={!!orderToCancel}
-                onClose={() => setOrderToCancel(null)}
-                onConfirm={handleConfirmCancel}
-                title="Cancelar Pedido"
-                message={`Tem a certeza que quer cancelar o pedido ${orderToCancel?.id.slice(-6)}? O valor não será contabilizado.`}
+                isOpen={!!staffToDelete}
+                onClose={() => setStaffToDelete(null)}
+                onConfirm={handleDeleteStaff}
+                title="Apagar Funcionário"
+                message={`Tem a certeza que quer apagar "${staffToDelete?.name}"? Esta ação não pode ser desfeita.`}
             />
         </div>
     );
 });
 
-const Countdown: React.FC<{ createdAt: string }> = ({ createdAt }) => {
-  const [timeLeft, setTimeLeft] = useState('');
+const CafeAdminDashboard: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('products');
 
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const startTime = new Date(createdAt).getTime();
-      const now = new Date().getTime();
-      const difference = startTime + (15 * 60 * 1000) - now;
+  const tabs = [
+    { id: 'products', label: 'Produtos', icon: Package },
+    { id: 'staff', label: 'Funcionários', icon: Users },
+    { id: 'analytics', label: 'Análises', icon: BarChart2 },
+    { id: 'settings', label: 'Definições', icon: SlidersHorizontal },
+  ];
 
-      if (difference <= 0) {
-        setTimeLeft('Expirado');
-        return;
-      }
+  return (
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h2 className="text-4xl font-bold font-display text-center">Painel de Administração</h2>
+      </div>
+      
+      <div className="glass-card !rounded-full p-2 mb-8 flex items-center justify-center gap-2 max-w-lg mx-auto flex-wrap">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-full font-semibold flex items-center gap-2 transition-colors text-sm sm:text-base ${
+              activeTab === tab.id ? 'premium-gradient-button' : 'hover:bg-black/20'
+            }`}
+          >
+            <tab.icon size={18} /> {tab.label}
+          </button>
+        ))}
+      </div>
 
-      const minutes = Math.floor((difference / 1000 / 60) % 60);
-      const seconds = Math.floor((difference / 1000) % 60);
-
-      setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-    };
-
-    calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 1000);
-
-    return () => clearInterval(interval);
-  }, [createdAt]);
-
-  return <span className={`font-mono ${timeLeft === 'Expirado' ? 'text-red-400' : 'text-stone-300'}`}>{timeLeft}</span>;
+      <div>
+        {activeTab === 'products' && <ProductManagement />}
+        {activeTab === 'staff' && <StaffManagement />}
+        {activeTab === 'analytics' && <AnalyticsDashboard />}
+        {activeTab === 'settings' && <SettingsManagement />}
+      </div>
+    </div>
+  );
 };
 
-const FeedbackManagement = memo(() => {
-    const { feedbackSubmissions, toggleFeedbackResolved } = useData();
+const PlatformAdminDashboard: React.FC = () => {
+  const { availableCafes, platformDeleteCafe, platformUpdateCafeVisibility } = useData();
+  const [filter, setFilter] = useState('');
+  const [cafeToDelete, setCafeToDelete] = useState<Cafe | null>(null);
+  const [previewCafe, setPreviewCafe] = useState<Cafe | null>(null);
 
-    if (feedbackSubmissions.length === 0) {
-        return (
-            <div className="text-center py-16 glass-card">
-                <MessageSquare size={48} className="mx-auto text-stone-400" />
-                <h3 className="mt-4 text-xl font-semibold">Nenhum feedback recebido</h3>
-                <p className="mt-1" style={{color: 'var(--color-text-secondary)'}}>Ainda não há feedbacks de utilizadores para mostrar.</p>
-            </div>
-        );
-    }
+  const handleDelete = async () => {
+    if (!cafeToDelete) return;
+    await platformDeleteCafe(cafeToDelete.id);
+    setCafeToDelete(null);
+  };
+  
+  const handleToggleVisibility = async (cafeId: string, isHidden: boolean) => {
+    await platformUpdateCafeVisibility(cafeId, isHidden);
+  };
+  
+  const filteredCafes = useMemo(() => {
+    return availableCafes
+        .filter(c => c.id !== "5ef90427-306f-465a-9691-bec38da14a49") // Exclude ADM cafe
+        .filter(c => c.name.toLowerCase().includes(filter.toLowerCase()));
+  }, [availableCafes, filter]);
+  
+  return (
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      <h2 className="text-4xl font-bold font-display text-center mb-8">Gestão de Cafés da Plataforma</h2>
+      <div className="glass-card p-6">
+        <div className="mb-4 relative">
+          <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{color: 'var(--color-text-secondary)'}} />
+          <input 
+            type="text"
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Pesquisar cafés..."
+            className="w-full glass-input pl-12"
+          />
+        </div>
+        <div className="scrollable-content overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                <th className="p-3">Nome do Café</th>
+                <th className="p-3">ID</th>
+                <th className="p-3 text-center">Visibilidade</th>
+                <th className="p-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCafes.map(cafe => (
+                <tr key={cafe.id} className="border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                  <td className="p-3 font-semibold">{cafe.name}</td>
+                  <td className="p-3 font-mono text-xs" style={{color: 'var(--color-text-secondary)'}}>{cafe.id}</td>
+                  <td className="p-3 text-center">
+                    <button onClick={() => handleToggleVisibility(cafe.id, !cafe.is_server_hidden)} title={cafe.is_server_hidden ? 'Oculto (clique para mostrar)' : 'Visível (clique para ocultar)'}>
+                        {cafe.is_server_hidden ? <EyeOff className="text-stone-400" /> : <Eye className="text-green-400" />}
+                    </button>
+                  </td>
+                  <td className="p-3 text-right">
+                    <div className="flex justify-end gap-2">
+                        <button onClick={() => setPreviewCafe(cafe)} className="p-2 rounded-md hover:bg-black/20" title="Pré-visualizar"><MonitorPlay size={18} /></button>
+                        <button onClick={() => setCafeToDelete(cafe)} className="p-2 text-red-400 rounded-md hover:bg-red-900/40" title="Apagar Café"><Trash2 size={18}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {cafeToDelete && (
+        <PlatformDeleteCafeConfirmationModal
+            isOpen={!!cafeToDelete}
+            cafe={cafeToDelete}
+            onClose={() => setCafeToDelete(null)}
+            onConfirm={handleDelete}
+        />
+      )}
+      {previewCafe && (
+        <CafePreviewModal
+            cafe={previewCafe}
+            onClose={() => setPreviewCafe(null)}
+        />
+      )}
+    </div>
+  )
+};
+
+const ProductManagement = memo(() => {
+    // Component content here...
+    const { products, categories, addProduct, updateProduct, deleteProduct } = useData();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+
+
+    const handleOpenModal = (product: Product | null = null) => {
+        setEditingProduct(product);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingProduct(null);
+    };
+
+    const handleSaveProduct = async (productData: Omit<Product, 'id' | 'cafe_id'> | Product) => {
+        if ('id' in productData) {
+            await updateProduct(productData);
+        } else {
+            await addProduct(productData);
+        }
+        handleCloseModal();
+    };
     
+    const handleDeleteProduct = async () => {
+        if(productToDelete){
+            await deleteProduct(productToDelete.id);
+            setProductToDelete(null);
+        }
+    };
+
+    const filteredProducts = useMemo(() => {
+        return products
+            .filter(p => filterCategory === 'all' || p.category === filterCategory)
+            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [products, filterCategory, searchTerm]);
+
     return (
-        <div className="space-y-4">
-            {feedbackSubmissions.map(fb => (
-                <div key={fb.id} className="glass-card !bg-black/20 p-4 rounded-2xl border-l-4" style={{ borderColor: fb.is_resolved ? 'var(--color-table-free)' : 'var(--color-secondary)' }}>
-                    <div className="flex justify-between items-start gap-4">
-                        <div className="flex-grow">
-                            <div className="flex items-center gap-4 mb-2">
-                                {fb.rating && (
-                                    <div className="flex items-center gap-1">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} size={16} className={i < fb.rating! ? 'text-amber-400 fill-current' : 'text-stone-500'} />
-                                        ))}
-                                    </div>
-                                )}
-                                <span className="text-sm font-semibold flex items-center gap-2" title={fb.cafe_name || 'Café não especificado'}>
-                                    <Coffee size={14}/> {fb.cafe_name || 'N/A'}
-                                </span>
-                                <span className="text-sm font-semibold flex items-center gap-2" title={`Utilizador: ${fb.user_name || 'Anónimo'}`}>
-                                    <UserIcon size={14}/> {fb.user_name || 'N/A'}
-                                </span>
-                            </div>
-                            <p className="text-base" style={{color: 'var(--color-text-primary)'}}>{fb.content}</p>
-                            <p className="text-xs mt-2" style={{color: 'var(--color-text-secondary)'}}>
-                                {new Date(fb.created_at).toLocaleString('pt-PT')}
-                            </p>
-                        </div>
-                        <div className="flex flex-col items-center gap-2">
-                             <label htmlFor={`resolved-${fb.id}`} className="text-xs font-bold cursor-pointer">{fb.is_resolved ? 'Resolvido' : 'Pendente'}</label>
-                             <button
-                                id={`resolved-${fb.id}`}
-                                role="switch"
-                                aria-checked={fb.is_resolved}
-                                onClick={() => toggleFeedbackResolved(fb.id, !fb.is_resolved)}
-                                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-background)] ${fb.is_resolved ? 'bg-green-600' : 'bg-stone-600'}`}
-                                style={{'--tw-ring-color': 'var(--color-secondary)'} as React.CSSProperties}
-                            >
-                                <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${fb.is_resolved ? 'translate-x-6' : 'translate-x-1'}`}/>
-                            </button>
-                        </div>
+        <div>
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="glass-input !rounded-full"
+                    >
+                        <option value="all">Todas as Categorias</option>
+                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                     <div className="relative flex-grow">
+                        <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{color: 'var(--color-text-secondary)'}}/>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Pesquisar produtos..."
+                            className="w-full glass-input !rounded-full pl-12"
+                        />
                     </div>
                 </div>
-            ))}
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="w-full sm:w-auto premium-gradient-button py-2 px-4 flex items-center justify-center gap-2"
+                >
+                    <PlusCircle size={20} /> Adicionar Produto
+                </button>
+            </div>
+            <div className="scrollable-content overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left">
+                    <thead>
+                        <tr className="border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                            <th className="p-3">Nome</th>
+                            <th className="p-3">Categoria</th>
+                            <th className="p-3">Preço</th>
+                            <th className="p-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredProducts.map(product => (
+                            <tr key={product.id} className="border-b" style={{borderColor: 'var(--color-glass-border)'}}>
+                                <td className="p-3 font-semibold">{product.name}</td>
+                                <td className="p-3">{product.category}</td>
+                                <td className="p-3">€{product.price.toFixed(2)}</td>
+                                <td className="p-3">
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => handleOpenModal(product)} className="p-2 rounded-md hover:bg-black/20" title="Editar"><Edit size={18}/></button>
+                                        <button onClick={() => setProductToDelete(product)} className="p-2 text-red-400 rounded-md hover:bg-red-900/40" title="Apagar"><Trash2 size={18}/></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {isModalOpen && (
+                <ProductModal
+                    product={editingProduct}
+                    onClose={handleCloseModal}
+                    onSave={handleSaveProduct}
+                />
+            )}
+             <ConfirmationModal
+                isOpen={!!productToDelete}
+                onClose={() => setProductToDelete(null)}
+                onConfirm={handleDeleteProduct}
+                title="Apagar Produto"
+                message={`Tem a certeza que quer apagar o produto "${productToDelete?.name}"? Esta ação não pode ser desfeita.`}
+            />
         </div>
     );
 });
 
-const PlatformAdminPanel = memo(() => {
-    const { 
-        currentCafe, 
-        deleteCafe, 
-        updateCafe, 
-        availableCafes, 
-        platformDeleteCafe, 
-        platformUpdateCafeVisibility,
-        generateCreationCode, 
-        getActiveCreationCodes
-    } = useData();
-    const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
-    const [cafeToDelete, setCafeToDelete] = useState<Cafe | null>(null);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [previewingCafe, setPreviewingCafe] = useState<Cafe | null>(null);
-
-    const [activeCodes, setActiveCodes] = useState<CreationCode[]>([]);
-    const [isLoadingCodes, setIsLoadingCodes] = useState(true);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [copiedCode, setCopiedCode] = useState<string | null>(null);
-    const [codesError, setCodesError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('cafes');
-
-    const tabs = [
-        { id: 'cafes', label: 'Gestão de Cafés', icon: Server },
-        { id: 'codes', label: 'Códigos de Convite', icon: Ticket },
-        { id: 'feedback', label: 'Feedback', icon: MessageSquare },
-        { id: 'settings', label: 'Definições', icon: SlidersHorizontal }
-    ];
-
-    const fetchCodes = useCallback(async () => {
-        setIsLoadingCodes(true);
-        setCodesError(null);
-        const result = await getActiveCreationCodes();
-        if (result.error) {
-            setCodesError(`Falha ao carregar códigos: ${result.error}. Verifique as permissões (RLS) da tabela 'creation_codes'.`);
-            setActiveCodes([]);
-        } else if (result.data) {
-            const validCodes = result.data.filter(code => {
-                const ageInMinutes = (new Date().getTime() - new Date(code.created_at).getTime()) / (1000 * 60);
-                return ageInMinutes < 15;
-            });
-            setActiveCodes(validCodes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-        }
-        setIsLoadingCodes(false);
-    }, [getActiveCreationCodes]);
+const ProductModal: React.FC<{
+  product: Product | null;
+  onClose: () => void;
+  onSave: (product: Omit<Product, 'id' | 'cafe_id'> | Product) => void;
+}> = memo(({ product, onClose, onSave }) => {
+    const [name, setName] = useState(product?.name || '');
+    const [price, setPrice] = useState(product?.price?.toString() || '');
+    const [category, setCategory] = useState(product?.category || '');
+    const [newCategory, setNewCategory] = useState('');
+    const [error, setError] = useState('');
+    const { categories } = useData();
 
     useEffect(() => {
-        if (activeTab === 'codes') {
-            fetchCodes();
-            const interval = setInterval(fetchCodes, 10000);
-            return () => clearInterval(interval);
-        }
-    }, [activeTab, fetchCodes]);
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
 
-    const handleGenerateCode = async () => {
-        setIsGenerating(true);
-        setCodesError(null);
-        const result = await generateCreationCode();
-        if (result.error) {
-            setCodesError(`Falha ao gerar código: ${result.error}. Verifique as permissões (RLS) da tabela 'creation_codes'.`);
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        const finalCategory = category === '__new__' ? newCategory.trim() : category;
+
+        if (!name.trim() || !finalCategory) {
+            setError('Todos os campos são obrigatórios.');
+            return;
+        }
+        const priceNumber = parseFloat(price.replace(',', '.'));
+        if (isNaN(priceNumber) || priceNumber < 0) {
+            setError('O preço inserido é inválido.');
+            return;
+        }
+
+        const productData = { name: name.trim(), price: priceNumber, category: finalCategory };
+        
+        if (product) {
+            onSave({ ...product, ...productData });
         } else {
-            await fetchCodes();
-        }
-        setIsGenerating(false);
-    };
-
-    const handleCopyCode = (code: string) => {
-        navigator.clipboard.writeText(code);
-        setCopiedCode(code);
-        setTimeout(() => setCopiedCode(null), 2000);
-    };
-
-    const handleConfirmServerDelete = async (pin: string): Promise<boolean> => {
-        if (!currentCafe) return false;
-        const success = await deleteCafe(currentCafe.id, pin);
-        if (success) setIsDeleteServerModalOpen(false);
-        return success;
-    };
-
-    const handleToggleHideServer = async () => {
-        if (!currentCafe) return;
-        setActionError(null);
-        const result = await platformUpdateCafeVisibility(currentCafe.id, !currentCafe.is_server_hidden);
-        if (!result.success) {
-            setActionError(result.message);
+            onSave(productData);
         }
     };
-
-    const handlePlatformDelete = async () => {
-        if (!cafeToDelete) return;
-        const result = await platformDeleteCafe(cafeToDelete.id);
-        if (!result.success) setActionError(result.message);
-        setCafeToDelete(null);
-    };
-
-    const handlePlatformVisibilityToggle = async (cafe: Cafe) => {
-        const result = await platformUpdateCafeVisibility(cafe.id, !cafe.is_server_hidden);
-        if (!result.success) setActionError(result.message);
-    };
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'cafes':
-                return (
-                    <div>
-                        <h3 className="text-2xl font-bold font-display mb-4">Gestão de Cafés</h3>
-                        <div className="glass-card p-4 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full">
-                                    <thead className="bg-black/20">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Nome do Café</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Visibilidade</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{color: 'var(--color-text-secondary)'}}>Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y" style={{borderColor: 'var(--color-glass-border)'}}>
-                                        {availableCafes.filter(c => c.id !== currentCafe?.id).map(cafe => (
-                                            <tr key={cafe.id}>
-                                                <td className="px-4 py-3 whitespace-nowrap font-medium">{cafe.name}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <button onClick={() => handlePlatformVisibilityToggle(cafe)} className="flex items-center gap-2 text-sm">
-                                                        {cafe.is_server_hidden ? <><EyeOff size={16} className="text-stone-400" /> Oculto</> : <><Eye size={16} className="text-green-400" /> Público</>}
-                                                    </button>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <div className="flex items-center gap-4">
-                                                        <button onClick={() => setPreviewingCafe(cafe)} className="text-blue-400 hover:text-blue-300 flex items-center gap-1.5 text-sm font-semibold">
-                                                            <MonitorPlay size={16}/> Visualizar
-                                                        </button>
-                                                        <button onClick={() => setCafeToDelete(cafe)} className="text-red-400 hover:text-red-300 flex items-center gap-1.5 text-sm font-semibold">
-                                                            <Trash2 size={16}/> Apagar
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'codes':
-                return (
-                    <div>
-                        <h3 className="text-2xl font-bold font-display mb-4">Códigos de Convite</h3>
-                        <div className="glass-card p-4">
-                            {codesError && (
-                                <div className="bg-red-900/50 text-red-300 p-3 rounded-xl text-sm mb-4 flex items-start gap-2">
-                                    <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
-                                    <div><strong className="font-bold">Ocorreu um Erro:</strong> <p>{codesError}</p></div>
-                                </div>
-                            )}
-                            <p style={{ color: 'var(--color-text-secondary)' }} className="mb-4 text-sm">Gere códigos de convite para permitir que novos cafés sejam criados. Cada código é válido por 15 minutos.</p>
-                            <button onClick={handleGenerateCode} disabled={isGenerating} className="w-full premium-gradient-button py-2.5 flex items-center justify-center gap-2 text-base mb-4">
-                                {isGenerating ? <Loader2 className="animate-spin"/> : <PlusCircle />}
-                                {isGenerating ? 'A gerar...' : 'Gerar Novo Código'}
-                            </button>
-                            <div className="max-h-60 overflow-y-auto pr-2 -mr-2 space-y-2">
-                                {isLoadingCodes ? <Loader2 className="animate-spin text-amber-300 mx-auto my-8" /> : 
-                                    activeCodes.length === 0 ? <p className="text-center py-8" style={{color: 'var(--color-text-secondary)'}}>Nenhum código ativo.</p> :
-                                    activeCodes.map(code => (
-                                        <div key={code.code} className="bg-black/20 p-2 rounded-lg flex items-center justify-between gap-4 text-sm">
-                                            <span className="font-mono tracking-wider">{code.code.replace(/(.{5})/g, '$1 ').trim()}</span>
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex items-center gap-1.5"><Clock size={14} /><Countdown createdAt={code.created_at} /></div>
-                                                <button onClick={() => handleCopyCode(code.code)} className="secondary-button font-semibold py-1 px-2 flex items-center gap-1 text-xs">
-                                                    {copiedCode === code.code ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-                                                    {copiedCode === code.code ? 'Copiado' : 'Copiar'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'feedback':
-                return (
-                    <div>
-                        <h3 className="text-2xl font-bold font-display mb-4">Feedback de Utilizadores</h3>
-                        <div className="glass-card p-4">
-                            <FeedbackManagement />
-                        </div>
-                    </div>
-                );
-            case 'settings':
-                return (
-                    <div>
-                        <h3 className="text-2xl font-bold font-display mb-4">Definições da Plataforma</h3>
-                        <div className="pt-8 border-t-2 border-red-500/50">
-                            <h3 className="text-2xl font-bold text-red-300 font-display">Zona de Perigo (Servidor ADM)</h3>
-                            <div className="bg-red-900/20 p-6 rounded-2xl mt-4 border border-red-500/30 space-y-6">
-                                <div>
-                                    <h4 className="text-lg font-semibold">Visibilidade do Servidor de Administração</h4>
-                                    <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Oculte este servidor da lista pública. Apenas poderá acedê-lo através de um link direto ou se já tiver entrado como gerente neste dispositivo.</p>
-                                    <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl border" style={{borderColor: 'var(--color-glass-border)'}}>
-                                        <label htmlFor="hide-server-toggle" className="font-medium pr-4 cursor-pointer">Ocultar servidor ADM da lista pública</label>
-                                        <button
-                                            id="hide-server-toggle"
-                                            role="switch"
-                                            aria-checked={!!currentCafe?.is_server_hidden}
-                                            onClick={handleToggleHideServer}
-                                            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-background)] ${currentCafe?.is_server_hidden ? 'bg-red-600' : 'bg-stone-600'}`}
-                                            style={{'--tw-ring-color': 'var(--color-secondary)'} as React.CSSProperties}
-                                        >
-                                            <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${currentCafe?.is_server_hidden ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="pt-6 border-t" style={{borderColor: 'var(--color-glass-border)'}}>
-                                    <h4 className="text-lg font-semibold">Apagar Servidor de Administração</h4>
-                                    <p className="mt-1 mb-4" style={{color: 'var(--color-text-secondary)'}}>Atenção: Esta ação é permanente e irá apagar o servidor principal da plataforma. Isto irá impedir a criação de novos cafés.</p>
-                                    <button 
-                                        onClick={() => setIsDeleteServerModalOpen(true)} 
-                                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                                        disabled
-                                        title="Esta funcionalidade está desativada."
-                                    >
-                                        <Trash2 /> Apagar Servidor ADM Permanentemente
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-            default:
-                return null;
-        }
-    }
 
     return (
-        <div className="p-4 sm:p-6 md:p-8 min-h-[calc(100vh-7rem)]">
-            <div className="max-w-7xl mx-auto">
-                <h2 className="text-3xl lg:text-4xl font-bold font-display text-center flex items-center justify-center gap-4">
-                    <Crown size={36} className="icon-glow" style={{color: 'var(--color-secondary)'}} />
-                    Administração da Plataforma
-                </h2>
-
-                {actionError && (
-                    <div className="bg-red-900/50 text-red-300 p-4 rounded-xl text-sm flex items-start gap-2 mt-6">
-                        <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-card w-full max-w-md p-6">
+                <h3 className="text-2xl font-bold font-display mb-4">{product ? 'Editar Produto' : 'Novo Produto'}</h3>
+                <form onSubmit={handleSubmit}>
+                    <div className="space-y-4">
                         <div>
-                            <strong className="font-bold">Ocorreu um Erro</strong>
-                            <p>{actionError}</p>
+                            <label htmlFor="product-name" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>Nome</label>
+                            <input type="text" id="product-name" value={name} onChange={e => setName(e.target.value)} className="w-full glass-input" autoFocus />
                         </div>
-                    </div>
-                )}
-            
-                <div className="flex flex-col lg:flex-row gap-8 mt-8">
-                    <aside className="lg:w-64 flex-shrink-0">
-                        <nav className="sticky top-28">
-                            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
-                                {tabs.map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 font-semibold transition-colors whitespace-nowrap !rounded-2xl ${
-                                            activeTab === tab.id
-                                                ? 'premium-gradient-button'
-                                                : 'secondary-button'
-                                        }`}
-                                    >
-                                        <tab.icon size={20} />
-                                        {tab.label}
-                                    </button>
-                                ))}
+                        <div>
+                            <label htmlFor="product-price" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>Preço (€)</label>
+                            <input type="text" id="product-price" value={price} onChange={e => setPrice(e.target.value)} className="w-full glass-input" />
+                        </div>
+                        <div>
+                             <label htmlFor="product-category" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>Categoria</label>
+                            <select id="product-category" value={category} onChange={e => setCategory(e.target.value)} className="w-full glass-input">
+                                <option value="" disabled style={{backgroundColor: '#332924'}}>Selecione uma categoria</option>
+                                {categories.map(cat => <option key={cat} value={cat} style={{backgroundColor: '#332924'}}>{cat}</option>)}
+                                <option value="__new__" style={{backgroundColor: '#332924'}}>-- Criar Nova Categoria --</option>
+                            </select>
+                        </div>
+                        {category === '__new__' && (
+                             <div>
+                                <label htmlFor="new-category-name" className="block text-sm font-medium mb-2" style={{color: 'var(--color-text-secondary)'}}>Nome da Nova Categoria</label>
+                                <input type="text" id="new-category-name" value={newCategory} onChange={e => setNewCategory(e.target.value)} className="w-full glass-input" />
                             </div>
-                        </nav>
-                    </aside>
-                    <div className="flex-grow min-w-0">
-                        {renderContent()}
+                        )}
                     </div>
-                </div>
+                    {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+                    <div className="mt-6 flex justify-end gap-4">
+                        <button type="button" onClick={onClose} className="secondary-button font-bold py-2 px-4">Cancelar</button>
+                        <button type="submit" className="premium-gradient-button py-2 px-4">Guardar</button>
+                    </div>
+                </form>
             </div>
-            {currentCafe && <DeleteServerConfirmationModal isOpen={isDeleteServerModalOpen} cafe={currentCafe} onClose={() => setIsDeleteServerModalOpen(false)} onConfirm={handleConfirmServerDelete} />}
-            <PlatformDeleteCafeConfirmationModal 
-                isOpen={!!cafeToDelete} 
-                cafe={cafeToDelete}
-                onClose={() => setCafeToDelete(null)} 
-                onConfirm={handlePlatformDelete} 
-            />
-            {previewingCafe && <CafePreviewModal cafe={previewingCafe} onClose={() => setPreviewingCafe(null)} />}
         </div>
     );
 });
-
-
-const AdminDashboard: React.FC = () => {
-    const { isAdmCafe } = useData();
-    const [activeTab, setActiveTab] = useState('analytics');
-
-    if (isAdmCafe) {
-        return <PlatformAdminPanel />;
-    }
-
-    const tabs = [
-        { id: 'analytics', label: 'Estatísticas', icon: TrendingUp, component: <AnalyticsDashboard /> },
-        { id: 'reports', label: 'Relatórios', icon: BarChart2, component: <Reports /> },
-        { id: 'products', label: 'Produtos', icon: Package, component: <ProductManagement /> },
-        { id: 'staff', label: 'Funcionários', icon: Users, component: <StaffManagement /> },
-        { id: 'feedback', label: 'Feedback', icon: MessageSquare, component: <FeedbackManagement /> },
-        { id: 'settings', label: 'Definições', icon: SlidersHorizontal, component: <SettingsManagement /> }
-    ];
-
-    const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
-
-    return (
-        <div className="p-4 sm:p-6 md:p-8 min-h-[calc(100vh-7rem)]">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
-            <aside className="lg:w-64 flex-shrink-0">
-                <nav className="sticky top-28">
-                    <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
-                        {tabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 font-semibold transition-colors whitespace-nowrap !rounded-2xl ${
-                                    activeTab === tab.id
-                                        ? 'premium-gradient-button'
-                                        : 'secondary-button'
-                                }`}
-                            >
-                                <tab.icon size={20} />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                </nav>
-            </aside>
-            <div className="flex-grow min-w-0">
-                {ActiveComponent}
-            </div>
-          </div>
-        </div>
-    );
-};
-
 export default AdminDashboard;

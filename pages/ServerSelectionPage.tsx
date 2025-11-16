@@ -180,10 +180,9 @@ const ServerSelectionPage: React.FC = () => {
     setError('');
     try {
         const urlObject = new URL(url);
-        const pathWithHash = urlObject.hash; // e.g., #/join/cafe-123 or #/menu/cafe-123/table-456
+        const pathWithHash = urlObject.hash; // e.g., #/join/cafe-123
 
         const joinPrefix = '#/join/';
-        const menuPrefix = '#/menu/';
 
         if (pathWithHash.startsWith(joinPrefix)) {
             const cafeId = pathWithHash.substring(joinPrefix.length);
@@ -197,13 +196,8 @@ const ServerSelectionPage: React.FC = () => {
             } else {
                 setError('Código QR de convite inválido. Não contém um ID de café.');
             }
-        } else if (pathWithHash.startsWith(menuPrefix)) {
-            // Redirect directly to the customer menu
-            // The path will be handled by the App router
-            navigate(pathWithHash.substring(1));
-        }
-        else {
-            setError('Código QR inválido. Não parece ser um código de Café Control.');
+        } else {
+            setError('Código QR inválido. Não parece ser um código de convite de Café Control.');
         }
     } catch (e) {
         console.error("Invalid URL scanned:", e);

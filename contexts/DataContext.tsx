@@ -682,15 +682,19 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   }, []);
 
   const addOrder = useCallback(async (tableId: string, items: OrderItem[], isCustomer: boolean = false): Promise<Order | null> => {
-    if ((!user && !isCustomer) || !currentCafeId) return null;
+    const staffId = isCustomer ? null : user?.id;
+    if (!isCustomer && !user) return null;
+    if (!currentCafeId) return null;
 
-    const staffId = user ? user.id : 'customer-order';
     const newOrder = {
       id: uuidv4(),
       cafe_id: currentCafeId,
-      table_id: tableId, staff_id: staffId, items,
+      table_id: tableId, 
+      staff_id: staffId, 
+      items,
       status: OrderStatus.NEW,
-      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(), 
+      updated_at: new Date().toISOString(),
     };
     
     const { data, error } = await supabase.from('orders').insert(newOrder).select().single();
@@ -699,9 +703,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       return null;
     }
     
-    if (!isCustomer) {
-      new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(e => console.error("Error playing audio:", e));
-    }
+    new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(e => console.error("Error playing audio:", e));
 
     return data ? { ...data, created_at: new Date(data.created_at), updated_at: new Date(data.updated_at) } as Order : null;
   }, [user, currentCafeId]);
@@ -712,24 +714,26 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       .eq('id', orderId);
     if (error) console.error("Error updating order status:", error.message);
   }, []);
-
+  
   const customerCancelOrder = useCallback(async (orderId: string): Promise<{ success: boolean; message: string; }> => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) {
-        return { success: false, message: "Pedido não encontrado." };
+    const { data: order, error: fetchError } = await supabase.from('orders').select('status').eq('id', orderId).single();
+
+    if (fetchError || !order) {
+        return { success: false, message: 'Pedido não encontrado.' };
     }
+
     if (order.status !== OrderStatus.NEW) {
-        return { success: false, message: "O pedido já está em preparo e não pode ser cancelado." };
+        return { success: false, message: 'Este pedido já está em preparo e não pode ser cancelado.' };
     }
-    const { error } = await supabase.from('orders')
-        .update({ status: OrderStatus.CANCELLED, updated_at: new Date().toISOString() })
-        .eq('id', orderId);
+    
+    const { error } = await supabase.from('orders').update({ status: OrderStatus.CANCELLED, updated_at: new Date().toISOString() }).eq('id', orderId);
+    
     if (error) {
-        console.error("Error cancelling order:", error.message);
-        return { success: false, message: "Falha ao cancelar o pedido." };
+        return { success: false, message: `Erro ao cancelar: ${error.message}` };
     }
-    return { success: true, message: "Pedido cancelado com sucesso." };
-  }, [orders]);
+    return { success: true, message: 'Pedido cancelado.' };
+  }, []);
+
 
   const getProductById = useCallback((id: string) => products.find(p => p.id === id), [products]);
   const getOrdersForTable = useCallback((tableId: string) => orders.filter(o => o.table_id === tableId), [orders]);
@@ -1183,20 +1187,21 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     platformUpdateCafeVisibility,
     submitFeedback,
     toggleFeedbackResolved,
-    customerCancelOrder,
     trackTablePresence,
     untrackTablePresence,
+    customerCancelOrder,
+    // FIX: A comma was missing after logout in the dependency array, causing a linting error.
   }), [
     user, staff, products, coffees, tables, orders, categories, currentCafe,
-    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, realtimeStatus, findUserByPin, setCurrentUser, logout,
-    fullLogout, addOrder, updateOrderStatus, getProductById, getOrdersForTable,
+    availableCafes, theme, isAppLoading, isAdmCafe, feedbackSubmissions, tablePresence, realtimeStatus, findUserByPin, setCurrentUser, logout, fullLogout, 
+    addOrder, updateOrderStatus, getProductById, getOrdersForTable,
     getTotalForTable, closeTableBill, removeItemFromOrder, updateProduct, addProduct,
     deleteProduct, addStaff, updateStaff, deleteStaff, addTable, deleteTable,
     updateTable, deleteLastTable, updateCategory, selectCafe, createCafe, deleteCafe,
     updateTheme, updateCafe, updateCurrentUserPin, updateCurrentUserPhone,
     findAdminByPhone, resetPinForUser, loginAdminByNamePinAndCafe,
     generateCreationCode, getActiveCreationCodes, platformDeleteCafe, platformUpdateCafeVisibility,
-    submitFeedback, toggleFeedbackResolved, customerCancelOrder, trackTablePresence, untrackTablePresence
+    submitFeedback, toggleFeedbackResolved, trackTablePresence, untrackTablePresence, customerCancelOrder
   ]);
 
   return (

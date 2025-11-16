@@ -27,7 +27,7 @@ export interface Order {
   id: string;
   cafe_id: string;
   table_id: string;
-  staff_id: string;
+  staff_id: string | null;
   items: OrderItem[];
   status: OrderStatus;
   created_at: Date;
@@ -187,7 +187,7 @@ export interface DataContextType {
   platformUpdateCafeVisibility: (cafeId: string, isHidden: boolean) => Promise<{ success: boolean; message: string; }>;
   submitFeedback: (content: string, rating: number | null) => Promise<{ success: boolean; message: string; }>;
   toggleFeedbackResolved: (id: string, isResolved: boolean) => Promise<{ success: boolean; message: string; }>;
-  customerCancelOrder: (orderId: string) => Promise<{ success: boolean; message: string; }>;
   trackTablePresence: (tableId: string) => void;
   untrackTablePresence: () => void;
+  customerCancelOrder: (orderId: string) => Promise<{ success: boolean; message: string }>;
 }

@@ -10,10 +10,10 @@ import Header from './components/Header';
 import LoginConfirmationPage from './pages/LoginConfirmationPage';
 import ServerSelectionPage from './pages/ServerSelectionPage';
 import JoinServerPage from './pages/JoinServerPage';
-import CustomerMenuPage from './pages/CustomerMenuPage';
 import FeedbackButton from './components/FeedbackButton';
 import Footer from './components/Footer';
 import { Loader2 } from 'lucide-react';
+import CustomerMenuPage from './pages/CustomerMenuPage';
 
 const App: React.FC = () => {
   return (
@@ -76,7 +76,7 @@ const Main: React.FC = () => {
   }, []); // Runs only once
 
   // Show spinner on initial app load OR when a cafe is selected but its data hasn't arrived yet.
-  if (isAppLoading || (currentCafe && staff.length === 0)) {
+  if (isAppLoading || (currentCafe && staff.length === 0 && !location.pathname.startsWith('/menu/'))) {
     return <LoadingSpinner />;
   }
 
@@ -90,20 +90,23 @@ const Main: React.FC = () => {
     }
   };
   
-  const requiresCafeContext = !['/select-server', '/join/:cafeId', '/menu/:cafeId/:tableId'].some(path => 
-    new RegExp(`^${path.replace(/:\w+/g, '[^/]+')}$`).test(window.location.hash.substring(1))
-  );
+  const isPublicPage = ['/select-server', '/join/', '/menu/'].some(path => location.pathname.startsWith(path));
+  
+  const requiresHeader = user && currentCafe && !isPublicPage;
+  const requiresFeedbackButton = currentCafe && !isPublicPage;
 
   return (
     <div className="min-h-screen flex flex-col">
-      {user && currentCafe && requiresCafeContext && <Header />}
+      {requiresHeader && <Header />}
       <main className="flex-grow w-full">
         <div className="mx-auto w-full">
           <Routes>
+            {/* Customer-facing menu */}
+            <Route path="/menu/:cafeId/:tableId" element={<CustomerMenuPage />} />
+
             {/* Public/Entry routes that define the cafe context */}
             <Route path="/select-server" element={currentCafe ? <Navigate to="/" /> : <ServerSelectionPage />} />
             <Route path="/join/:cafeId" element={<JoinServerPage />} />
-            <Route path="/menu/:cafeId/:tableId" element={<CustomerMenuPage />} />
 
             {/* Routes that require a cafe context */}
             <Route path="/" element={!currentCafe ? <Navigate to="/select-server" /> : (!user ? <RoleSelectionPage /> : <Navigate to={getRedirectPath()} />)} />
@@ -121,7 +124,7 @@ const Main: React.FC = () => {
         </div>
       </main>
       {location.pathname === '/select-server' && <Footer />}
-      {currentCafe && requiresCafeContext && <FeedbackButton />}
+      {requiresFeedbackButton && <FeedbackButton />}
     </div>
   );
 };
