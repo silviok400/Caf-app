@@ -292,19 +292,19 @@
         --color-background: #f8f5f2;
         --color-text-primary: #4a3f35;
         --color-text-secondary: #776c62;
-        --color-glass-bg: rgba(255, 255, 255, 0.7);
+        --color-glass-bg: rgba(255, 255, 255, 0.8);
         --color-glass-border: rgba(74, 63, 53, 0.15);
         --color-glass-border-highlight: color-mix(in srgb, var(--color-secondary) 50%, transparent);
 
-        /* Apply a light overlay on top of the cafe's background image */
-        background-image: 
-            linear-gradient(rgba(248, 245, 242, 0.9), rgba(248, 245, 242, 0.95)), 
-            var(--body-bg-image) !important;
-        background-color: var(--color-background) !important;
+        /* Remove the light overlay, directly using the cafe's background image */
+        background-image: var(--body-bg-image) !important;
+        background-color: var(--color-background) !important; /* Fallback color */
       }
       .customer-theme .premium-gradient-button {
-        color: #382e25;
-        text-shadow: none;
+        background: linear-gradient(145deg, color-mix(in srgb, var(--color-secondary) 85%, white), var(--color-secondary));
+        color: var(--color-text-primary);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        border-color: rgba(0,0,0,0.1);
       }
       .customer-theme .glass-card {
         box-shadow: 0 8px 32px 0 rgba(74, 63, 53, 0.12), var(--shadow-inner);
@@ -328,7 +328,7 @@
         background-color: color-mix(in srgb, var(--color-secondary) 70%, transparent);
       }
        .customer-theme .glass-input {
-        background: rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.6);
         color: var(--color-text-primary);
         border-color: rgba(74, 63, 53, 0.15);
       }
