@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { useData } from '../contexts/DataContext';
 import { Table, Product, OrderItem, Order, OrderStatus } from '../types';
 import { Plus, Minus, X, Send, Receipt, Ban, Mic, Search, MessageSquarePlus, CheckCircle, Loader2, Users } from 'lucide-react';
@@ -30,6 +30,7 @@ const OrderModal: React.FC<{
   const [view, setView] = useState<'order' | 'history'>('order');
   const [itemToCancel, setItemToCancel] = useState<{orderId: string, itemIndex: number} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(''); // New debounced state
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const [editingNote, setEditingNote] = useState<{productId: string; productName: string; currentNote: string} | null>(null);
@@ -37,6 +38,20 @@ const OrderModal: React.FC<{
   const [showAddedFeedback, setShowAddedFeedback] = useState<string | null>(null);
   const feedbackTimeoutRef = useRef<number | null>(null);
   const [submissionState, setSubmissionState] = useState<'idle' | 'submitting' | 'success'>('idle');
+  // Fix: Add state variables for cancelStatus and cancelError
+  const [cancelStatus, setCancelStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [cancelError, setCancelError] = useState('');
+
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce time
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     document.body.classList.add('modal-open');
@@ -186,7 +201,7 @@ const OrderModal: React.FC<{
 
   const productsToDisplay = products.filter(p =>
     (selectedCategory === 'all' || p.category === selectedCategory) &&
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    p.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) // Use debounced value
   );
   
   const otherViewers = tablePresence[table.id]?.filter(p => p.user_id !== user?.id) || [];
@@ -395,10 +410,11 @@ const OrderModal: React.FC<{
         )}
       </div>
       {itemToCancel && (
-        <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+        <div className="modal-backdrop fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="modal-content glass-card w-full max-w-sm p-6 text-center">
             <h3 className="text-2xl font-bold font-display mb-2">Cancelar Item</h3>
             <p className="mb-6" style={{color: 'var(--color-text-secondary)'}}>Tem a certeza que quer cancelar este item do pedido? Esta ação não pode ser desfeita.</p>
+            {cancelStatus === 'error' && <p className="text-red-400 text-sm mb-4">{cancelError}</p>}
             <div className="flex justify-center gap-4">
               <button
                 onClick={() => setItemToCancel(null)}
@@ -408,12 +424,20 @@ const OrderModal: React.FC<{
               </button>
               <button
                 onClick={async () => {
-                  await removeItemFromOrder(itemToCancel.orderId, itemToCancel.itemIndex);
-                  setItemToCancel(null);
+                  setCancelStatus('loading');
+                  setCancelError('');
+                  try {
+                    await removeItemFromOrder(itemToCancel.orderId, itemToCancel.itemIndex);
+                    setItemToCancel(null);
+                    setCancelStatus('idle');
+                  } catch (e: any) {
+                    setCancelError(e.message || "Falha ao remover item.");
+                    setCancelStatus('error');
+                  }
                 }}
                 className="w-full bg-red-600 text-white font-bold py-3 rounded-2xl hover:bg-red-700"
               >
-                Confirmar
+                {cancelStatus === 'loading' ? <Loader2 className="animate-spin" /> : 'Confirmar'}
               </button>
             </div>
           </div>
@@ -453,7 +477,7 @@ const WaiterDashboard: React.FC = () => {
           const occupied = isTableOccupied(table.id);
           const total = getTotalForTable(table.id);
           const tableColor = occupied ? theme.tableColors.occupied : theme.tableColors.free;
-          const viewers = tablePresence[table.id] || [];
+          const viewers = tablePresence[table.id]?.filter(p => p.user_id !== 'customer-order') || []; // Filter out customer-order
           return (
             <button
               key={table.id}
